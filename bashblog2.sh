@@ -151,6 +151,7 @@ exit() {
     log "[Info] Ending run"
     builtin exit # exit program
 }
+
 ########################################################################
 # main
 ########################################################################
@@ -165,9 +166,9 @@ initializeGlobalVariables
 # check for valid arguments
 # chain them together like [[  ]] && [[  ]] && ... && usage && exit
 [[ $1 != "edit" ]] && usage && exit
-
-######## 
+#
 # edit option
+#############
 if [[ $1 == "edit" ]]; then
     if [[ $# -lt 2 ]] || [[ ! -f $2 ]]; then
         echo "Enter a valid file to edit"
@@ -177,6 +178,6 @@ if [[ $1 == "edit" ]]; then
         edit "$2" # $2 is a filename
     fi
 fi
-######## 
+#############
 
 exit
