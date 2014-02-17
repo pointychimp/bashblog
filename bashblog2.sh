@@ -12,7 +12,7 @@
 # expected format:
 # key="value"
 global_config="bashblog2.conf"
-
+global_logFile="bashblog2.log"
 # run at beginning of script to generate globals
 #
 # takes no args
@@ -113,6 +113,7 @@ usage() {
     echo "    edit [filename] ... edit a file"
     echo ""
     echo "For more information, see README and $0 in a text editor"
+    log "[Info] Showing usage"
 }
 
 # 
@@ -129,12 +130,31 @@ edit() {
 # takes no args
 backup() {
     tar cfz $global_backupFile $global_backupList &> /dev/null
+    [[ $? -ne 0 ]] && log "[Warning] Backup error"
     chmod 600 $global_backupFile
-    echo "Backed up just in case"
+}
+
+# wrapper for logging to $global_logFile
+#
+# $1 stuff to put in log file
+log() {
+    echo -n "$(date +"[%Y-%m-%d %H:%M:%S]")" >> $global_logFile
+    echo -n "[$$]" >> $global_logFile
+    echo "$1" >> $global_logFile
+}
+
+# overload of exit function
+#
+# $1 optional message to log
+exit() {
+    [[ ! -z "$1" ]] && log "$1"
+    log "[Info] Ending run"
+    builtin exit # exit program
 }
 ########################################################################
 # main
 ########################################################################
+log "[Info] Starting run"
 detectDateVersion
 # initalize and load global variables 
 initializeGlobalVariables
@@ -142,7 +162,8 @@ initializeGlobalVariables
 # make sure $EDITOR is set
 [[ -z $EDITOR ]] && echo "Set \$EDITOR enviroment variable" && exit
 
-# check for valid argument
+# check for valid arguments
+# chain them together like [[  ]] && [[  ]] && ... && usage && exit
 [[ $1 != "edit" ]] && usage && exit
 
 ######## 
@@ -150,7 +171,7 @@ initializeGlobalVariables
 if [[ $1 == "edit" ]]; then
     if [[ $# -lt 2 ]] || [[ ! -f $2 ]]; then
         echo "Enter a valid file to edit"
-        exit
+        exit "[Error] No file passed"
     else
         backup
         edit "$2" # $2 is a filename
@@ -158,3 +179,4 @@ if [[ $1 == "edit" ]]; then
 fi
 ######## 
 
+exit
