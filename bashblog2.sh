@@ -30,13 +30,17 @@ initializeGlobalVariables() {
    
     global_indexFile="index.html" # index page, best to leave alone
     global_archiveFile="archive.html" # page to list all posts
-    global_header_file="header.html" # header file  # change to use something
-    global_footer_file="footer.html" # footer file  # other than default
-        
+    global_headerFile="header.html" # header file  # change to use something
+    global_footerFile="footer.html" # footer file  # other than default
+    
+    global_sourceDir="source/" # dir for easy-to-edit source  # best to 
+    global_draftsDir="drafts/" # dir for drafts               # leave these
+    global_htmlDir="html/" # dir for final html files         # alone
+    
     global_feed="feed.rss" # rss feed file
     global_feedLength="10" # num of articles to include in feed
     
-    global_syncFunction="" # example: "cp -r ./ /mnt/backup/blog/"
+    global_syncFunction="" # example: "cp -r ./$global_htmlDir /mnt/backup/blog/"
     
     global_backupFile="backup.tar.gz" # destination for backup
     global_backupList="*.html *.css *.conf" # separate with spaces
