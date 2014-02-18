@@ -19,7 +19,7 @@ global_logFile="bashblog2.log"
 # takes no args
 initializeGlobalVariables() {
     global_softwareName="BashBlog2"
-    global_softwareVersion="0.1"
+    global_softwareVersion="0.1.1a"
     
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -34,10 +34,10 @@ initializeGlobalVariables() {
     global_headerFile="header.html" # header file  # change to use something
     global_footerFile="footer.html" # footer file  # other than default
     
-    global_sourceDir="source/" # dir for easy-to-edit source  # best to 
-    global_draftsDir="drafts/" # dir for drafts               # leave
-    global_htmlDir="html/" # dir for final html files         # these
-    global_tempDir="/tmp/bashblog2/" # dir for pending files  # alone
+    global_sourceDir="source" # dir for easy-to-edit source  # best to 
+    global_draftsDir="drafts" # dir for drafts               # leave
+    global_htmlDir="html" # dir for final html files         # these
+    global_tempDir="/tmp/$global_softwareName" # dir for pending files  # alone
     
     global_feed="feed.rss" # rss feed file
     global_feedLength="10" # num of articles to include in feed
@@ -112,10 +112,48 @@ usage() {
     echo "Usage: $0 command [filename]"
     echo ""
     echo "Commands:"
-    echo "    edit [filename] ... edit a file"
+    echo "    edit [filename] .............. edit a file and republish if necessary"
+    echo "    post [markdown] [filename] ... publish a blog entry"
+    echo "                                   if markdown not specified, then assume html"
+    echo "                                   if no filename, start from scratch"
     echo ""
     echo "For more information, see README and $0 in a text editor"
     log "[Info] Showing usage"
+}
+
+# fills a pending post with template
+#
+# $1    format, "md" or "html"
+# $2    filename
+fillPostTemplate() {
+    log "[Info] Applying template to $2"
+    local datetime=$(date +'%Y%m%d%H%M%S')
+    if [[ $1 == "md" ]]; then local content="This is the body of your post. You may format with **markdown**.\n\nUse as many lines as you wish.";
+    else local content="<p>This is the body of your post. You may format with <b>html</b></p>\n\n<p>Use as many lines as you wish.</p>"; fi
+    echo "Title goes on this line"                      > $2
+    echo ""                                            >> $2
+    echo -e $content                                   >> $2
+    echo "---------POST-TAGS---ONE-PER-LINE----------" >> $2
+    echo ""                                            >> $2
+    echo "--------DO-NOT-EDIT-UNDER-THIS-LINE--------" >> $2
+    echo $datetime                                     >> $2 # original datetime
+    echo $datetime                                     >> $2 # edit datetime
+    echo $1                                            >> $2 # format 
+}
+
+# performs the sync function (if any)
+# and logs about it
+#
+# takes no args
+sync() {
+    if [[ ! -z "$global_syncFunction" ]]; then
+        log "[Info] Starting sync"
+        $global_syncFunction
+        log "[Info] End of sync"
+    else
+        log "[Info] No sync function"
+    fi
+    
 }
 
 # edit a file and start the process of republishing if needed
@@ -132,8 +170,38 @@ edit() {
 # $1    format, "md" or "html"
 # $2    filename, optional
 post() {
-    echo "format is" $1
-    [[ ! -z "$2" ]] && echo "filename is $2" || echo "new file"
+    local format=$1
+    local filename="$filename"
+    # if no filename passed, posting a new file. Make a temp file
+    if [[ -z "$filename" ]]; then
+        filename="$global_tempDir/$RANDOM$RANDOM$RANDOM"
+        fillPostTemplate $format $filename
+    fi
+    # do any editing if the blogger wants to
+    local postResponse="e"
+    while [[ $postResponse != "p" ]]
+    do
+        $EDITOR "$filename"
+        # see if user wants to preview post
+        local previewResponse
+        echo -n "Preview post? (y/N) "
+        read -n 1 previewResponse && echo
+        previewResponse=$(echo $previewResponse | tr '[:upper:]' '[:lower:]')
+        if [[ $previewResponse == "y" ]]; then
+            log "[Info] Generating preview"
+            # generate privew
+            sync
+        else
+            # do nothing
+            echo hi &> /dev/null
+        fi
+        
+        echo -n "(p)ublish, (E)dit, (s)ave draft, (d)iscard: "
+        read -n 1 postResponse && echo
+        postResponse=$(echo $postResponse | tr '[:upper:]' '[:lower:]')
+        
+    done
+    
 }
 
 # backup desired files to compressed tarball
@@ -149,7 +217,7 @@ backup() {
 
 # wrapper for logging to $global_logFile
 #
-# $1 stuff to put in log file
+# $1    stuff to put in log file
 log() {
     echo -n "$(date +"[%Y-%m-%d %H:%M:%S]")" >> $global_logFile
     #echo -n "[$$]" >> $global_logFile
@@ -224,6 +292,9 @@ if [[ $1 == "post" ]]; then
         if [[ $extension == "md" ]] && [[ ! $2 == "markdown" ]]; then
             log "[Warning] Assuming markdown file based on extension"
             format="md"
+        elif [[ ! $extension == "md" ]] && [[ $2 == "markdown" ]]; then
+            echo "$filename isn't markdown. If it is, change the extension."
+            exit "[Error] $filename is not markdown"
         elif [[ $extension == "md" ]]; then format="md";
         elif [[ $extension == "html" ]]; then format="html";
         else
@@ -239,6 +310,5 @@ if [[ $1 == "post" ]]; then
     fi
 fi
 #############
-
 
 exit
