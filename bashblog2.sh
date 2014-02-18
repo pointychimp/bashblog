@@ -19,7 +19,7 @@ global_logFile="bashblog2.log"
 # takes no args
 initializeGlobalVariables() {
     global_softwareName="BashBlog2"
-    global_softwareVersion="0.1.1a"
+    global_softwareVersion="0.1.2a"
     
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -34,9 +34,10 @@ initializeGlobalVariables() {
     global_headerFile="header.html" # header file  # change to use something
     global_footerFile="footer.html" # footer file  # other than default
     
-    global_sourceDir="source" # dir for easy-to-edit source  # best to 
-    global_draftsDir="drafts" # dir for drafts               # leave
-    global_htmlDir="html" # dir for final html files         # these
+    global_sourceDir="source" # dir for easy-to-edit source             # best  
+    global_draftsDir="drafts" # dir for drafts                          # to
+    global_htmlDir="html" # dir for final html files                    # leave
+    global_previewDir="$global_htmlDir/preview" # dir for previews      # these
     global_tempDir="/tmp/$global_softwareName" # dir for pending files  # alone
     
     global_feed="feed.rss" # rss feed file
@@ -130,15 +131,16 @@ fillPostTemplate() {
     local datetime=$(date +'%Y%m%d%H%M%S')
     if [[ $1 == "md" ]]; then local content="This is the body of your post. You may format with **markdown**.\n\nUse as many lines as you wish.";
     else local content="<p>This is the body of your post. You may format with <b>html</b></p>\n\n<p>Use as many lines as you wish.</p>"; fi
-    echo "Title goes on this line"                      > $2
-    echo ""                                            >> $2
+    echo "---------DO-NOT-EDIT-THIS-SECTION----------"  > $2
+    echo $1                                            >> $2 # format 
+    echo $datetime                                     >> $2 # original datetime
+    echo $datetime                                     >> $2 # edit datetime
+    echo "----------------POST-CONTENT---------------" >> $2
+    echo "Title goes on this line"                     >> $2
+    echo "----"                                        >> $2
     echo -e $content                                   >> $2
     echo "---------POST-TAGS---ONE-PER-LINE----------" >> $2
     echo ""                                            >> $2
-    echo "--------DO-NOT-EDIT-UNDER-THIS-LINE--------" >> $2
-    echo $datetime                                     >> $2 # original datetime
-    echo $datetime                                     >> $2 # edit datetime
-    echo $1                                            >> $2 # format 
 }
 
 # performs the sync function (if any)
@@ -164,6 +166,90 @@ edit() {
     $EDITOR "$1"
 }
 
+# parse the given file into html
+# and put it all into the given filename
+#
+# $1    file to parse
+# $2    dir to put parsed .html file into
+# returns $2/title-of-post.html
+parse() {
+    local format
+    local postDate
+    local editDate
+    local title
+    local content
+    local tags
+    local filename
+    local onTags="false"
+    local line
+    while read line; do
+        if [[ "$line" == "---------DO-NOT-EDIT-THIS-SECTION----------" ]]; then
+            read line # format content is in, "md" or "html"
+            if [[ -z "$format" ]]; then
+                format="$line"
+                if [[ $format != "md" ]] && [[ $format != "html" ]]; then
+                    echo "Couldn't parse file: invalid format"
+                    exit "[Error] Couldn't parse file: invalid format"
+                fi
+            fi
+            read line # posting date, should never change
+            if [[ -z "$postDate" ]]; then
+                postDate="$line"
+                if [[ ! $postDate =~ ^[0-9]+$ ]]; then
+                    echo "Couldn't parse file: invalid date"
+                    exit "[Error] Couldn't parse file: invalid date"
+                fi
+            fi
+            read line # edit date, changes when editing after publication
+            if [[ -z "$editDate" ]]; then
+                editDate="$line"
+                if [[ ! $editDate =~ ^[0-9]+$ ]]; then
+                    echo "Couldn't parse file: invalid date"
+                    exit "[Error] Couldn't parse file: invalid date"
+                fi
+            fi
+        elif [[ "$line" == "----------------POST-CONTENT---------------" ]]; then
+            read line # title, then also convert into filename
+            title="$line" 
+            # get filename based on title: all lower case, spaces to dashes, all alphanumeric
+            filename="$2/$(echo $title | tr [:upper:] [:lower:] | sed 's/\ /-/g' | tr -dc '[:alnum:]-').html"
+            read line # spacer between title and content
+        elif [[ "$line" != "---------POST-TAGS---ONE-PER-LINE----------" ]] && [[ $onTags == "false" ]]; then
+            # get everything before tag divider into the content variable
+            [[ ! -z "$content" ]] && content="$content\n$line" || content="$line"
+        else
+            onTags="true"
+            # get tags, except first thing will be the divider so continue first
+            [[ "$line" == "---------POST-TAGS---ONE-PER-LINE----------" ]] && continue
+            if [[ $line =~ ^.*\;.*$ ]]; then
+                echo "Coudln't parse file: tags can't have \";\" in them"
+                exit "[Error] Couldn't parse file: bad tags"
+            else
+                # append latest tag to list, dividing each with ";"
+                [[ ! -z "$tags" ]] && tags="$tags;$line" || tags="$line"
+            fi
+        fi
+    done < "$1"
+    
+    createHtmlPage $format $postDate $editDate "$title" "$content" "$tags" "$filename"
+}
+
+# takes parsed information 
+# and turns into an html file 
+# ready for publishing (or previewing)
+#
+# $1    format, "md" or "html"
+# $2    date & time of original posting
+# $3    date & time of latest edit
+# $4    title of post
+# $5    content of post
+# $6    tags of post, if any
+# $7    filename where everything goes
+# returns $7
+createHtmlPage() {
+    echo $7
+}
+
 # publish a file
 # got here with "./bashblog2.sh post [filename]"
 #
@@ -179,28 +265,44 @@ post() {
     fi
     # do any editing if the blogger wants to
     local postResponse="e"
-    while [[ $postResponse != "p" ]]
+    while [[ $postResponse != "p" ]] && [[ $postResponse != "s" ]] && [[ $postResponse != "d" ]]
     do
         $EDITOR "$filename"
-        # see if user wants to preview post
-        local previewResponse
+        # see if blogger wants to preview post
+        local previewResponse="y"
         echo -n "Preview post? (y/N) "
-        read -n 1 previewResponse && echo
+        read previewResponse && echo
         previewResponse=$(echo $previewResponse | tr '[:upper:]' '[:lower:]')
         if [[ $previewResponse == "y" ]]; then
+            # yes he does
             log "[Info] Generating preview"
-            # generate privew
+            local parsedPreview=$(parse "$filename" "$global_previewDir") # filename of where preview is on disk
+            # possible bug: it is not safe to assume that we can remove $global_htmlDir because $global_previewDir is a sub dir of it
+            # it may not be a subdir of $global_htmlDir. This is why it those settings are best left alone!
+            local url=$global_url"$(echo $parsedPreview | sed "s/$global_htmlDir//")" # url of preview, assuming sync is set up
             sync
+            echo "See $parsedPreview"
+            echo "or $url"
+            echo "depending on your configuration"
         else
             # do nothing
-            echo hi &> /dev/null
+            echo "" &> /dev/null
         fi
         
         echo -n "(p)ublish, (E)dit, (s)ave draft, (d)iscard: "
-        read -n 1 postResponse && echo
+        read postResponse && echo
         postResponse=$(echo $postResponse | tr '[:upper:]' '[:lower:]')
-        
     done
+    if [[ $postResponse == "p" ]]; then
+        # todo
+        log "[Info] publishing"
+    elif [[ $postResponse == "s" ]]; then
+        # todo
+        log "[Info] saving"
+    elif [[ $postResponse == "d" ]]; then
+        # todo
+        log "[Info] moving to drafts"
+    fi
     
 }
 
@@ -239,7 +341,7 @@ exit() {
 log "[Info] Starting run"
 detectDateVersion
 initializeGlobalVariables # initalize and load global variables from config
-mkdir -p "$global_sourceDir" "$global_draftsDir" "$global_htmlDir" "$global_tempDir"
+mkdir -p "$global_sourceDir" "$global_draftsDir" "$global_htmlDir" "$global_previewDir" "$global_tempDir"
 [[ -f "$global_config" ]] && source "$global_config" &> /dev/null
 # make sure $EDITOR is set
 [[ -z $EDITOR ]] && echo "Set \$EDITOR enviroment variable" && exit "[Error] \$EDITOR not exported"
