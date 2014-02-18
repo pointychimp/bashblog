@@ -12,8 +12,10 @@ TODO
 ----
 
 * EVERYTHING
+
 seriously though ... next steps
-* allow user to use "post" option 
-* above, but with markdown
-* prompt them after done editing post to post it, save as draft, discard, etc.
+
+* make posts (currently doesn't actually generate files)
+* flesh out edit function, with simple editing and editing source + republishing with editDate
+* other functions .... rebuild, reset come to mind
 
