@@ -7,12 +7,13 @@
 # 
 ########################################################################
 
-# location of config file
+# location of config/log files
 # values found in here overload defaults in this script
 # expected format:
 # key="value"
 global_config="bashblog2.conf"
 global_logFile="bashblog2.log"
+
 # run at beginning of script to generate globals
 #
 # takes no args
@@ -34,8 +35,9 @@ initializeGlobalVariables() {
     global_footerFile="footer.html" # footer file  # other than default
     
     global_sourceDir="source/" # dir for easy-to-edit source  # best to 
-    global_draftsDir="drafts/" # dir for drafts               # leave these
-    global_htmlDir="html/" # dir for final html files         # alone
+    global_draftsDir="drafts/" # dir for drafts               # leave
+    global_htmlDir="html/" # dir for final html files         # these
+    global_tempDir="/tmp/bashblog2/" # dir for pending files  # alone
     
     global_feed="feed.rss" # rss feed file
     global_feedLength="10" # num of articles to include in feed
@@ -43,13 +45,13 @@ initializeGlobalVariables() {
     global_syncFunction="" # example: "cp -r ./$global_htmlDir /mnt/backup/blog/"
     
     global_backupFile="backup.tar.gz" # destination for backup
-    global_backupList="*.html *.css *.conf" # separate with spaces
     
     niceDateFormat="%B %d, %Y" # for displaying, not timestamps
     markdownBinary="$(which Markdown.pl)"
 }
 
-# example usage to test
+# makes sure markdown is working correctly
+# ex usage:
 # [[ testMarkdown -ne 0 ]] && echo "bad markdown" && return 1
 #
 # takes no args
@@ -116,12 +118,22 @@ usage() {
     log "[Info] Showing usage"
 }
 
-# 
+# edit a file and start the process of republishing if needed
 # got here with "./bashblog2.sh edit filename"
 #
-# $1 is filename to edit
+# $1    filename to edit
 edit() {
     $EDITOR "$1"
+}
+
+# publish a file
+# got here with "./bashblog2.sh post [filename]"
+#
+# $1    format, "md" or "html"
+# $2    filename, optional
+post() {
+    echo "format is" $1
+    [[ ! -z "$2" ]] && echo "filename is $2" || echo "new file"
 }
 
 # backup desired files to compressed tarball
@@ -129,7 +141,8 @@ edit() {
 #
 # takes no args
 backup() {
-    tar cfz $global_backupFile $global_backupList &> /dev/null
+    local backupList="$global_sourceDir $global_draftsDir $global_htmlDir $global_tempDir"
+    tar cfz $global_backupFile $backupList &> /dev/null
     [[ $? -ne 0 ]] && log "[Warning] Backup error"
     chmod 600 $global_backupFile
 }
@@ -139,7 +152,7 @@ backup() {
 # $1 stuff to put in log file
 log() {
     echo -n "$(date +"[%Y-%m-%d %H:%M:%S]")" >> $global_logFile
-    echo -n "[$$]" >> $global_logFile
+    #echo -n "[$$]" >> $global_logFile
     echo "$1" >> $global_logFile
 }
 
@@ -157,27 +170,75 @@ exit() {
 ########################################################################
 log "[Info] Starting run"
 detectDateVersion
-# initalize and load global variables 
-initializeGlobalVariables
+initializeGlobalVariables # initalize and load global variables from config
+mkdir -p "$global_sourceDir" "$global_draftsDir" "$global_htmlDir" "$global_tempDir"
 [[ -f "$global_config" ]] && source "$global_config" &> /dev/null
 # make sure $EDITOR is set
-[[ -z $EDITOR ]] && echo "Set \$EDITOR enviroment variable" && exit
+[[ -z $EDITOR ]] && echo "Set \$EDITOR enviroment variable" && exit "[Error] \$EDITOR not exported"
 
 # check for valid arguments
 # chain them together like [[  ]] && [[  ]] && ... && usage && exit
-[[ $1 != "edit" ]] && usage && exit
+[[ $1 != "edit" ]] && [[ $1 != "post" ]] && usage && exit
+
 #
 # edit option
 #############
+# $1    "edit"
+# $2    filename
 if [[ $1 == "edit" ]]; then
-    if [[ $# -lt 2 ]] || [[ ! -f $2 ]]; then
+    if [[ $# -lt 2 ]]; then
         echo "Enter a valid file to edit"
         exit "[Error] No file passed"
+    elif [[ ! -f "$2" ]]; then
+        echo "$2 does not exist"
+        exit "[Error] File does not exist"
     else
         backup
         edit "$2" # $2 is a filename
     fi
 fi
 #############
+
+#
+# post option
+#############
+# $1    "post"
+# $2    "markdown" or filename
+# $3    if $2=="markdown", $3==filename
+if [[ $1 == "post" ]]; then
+    format=""
+    filename=""
+    
+    if [[ $2 == "markdown" ]]; then filename="$3";
+    else filename="$2"; fi
+    
+    if [[ -z "$filename" ]]; then
+        # no filename, generate new file
+        if [[ $2 == "markdown" ]]; then format="md";
+        else format="html"; fi
+        log "[Info] Starting post process on new post"
+        post $format
+    elif [[ -f "$filename" ]]; then
+        # filename, and file exists, post it
+        extension=$(echo "${filename##*.}" | tr '[:upper:]' '[:lower:]')
+        if [[ $extension == "md" ]] && [[ ! $2 == "markdown" ]]; then
+            log "[Warning] Assuming markdown file based on extension"
+            format="md"
+        elif [[ $extension == "md" ]]; then format="md";
+        elif [[ $extension == "html" ]]; then format="html";
+        else
+            log "[Warning] Unknown extension. Assuming file is html"
+            format="html"
+        fi
+        log "[Info] Starting post process on $filename"
+        post $format $filename
+    elif [[ ! -f "$filename" ]]; then
+        # filename, but file doesn't exist
+        echo "$filename does not exist"
+        exit "[Error] File does not exist"
+    fi
+fi
+#############
+
 
 exit
