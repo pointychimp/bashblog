@@ -1,3 +1,8 @@
 *.log
 *.conf
 *.tar.gz
+.header.html
+.footer.html
+html/
+source/
+drafts/
