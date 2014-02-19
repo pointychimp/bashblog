@@ -287,6 +287,7 @@ createHtmlPage() {
     
     cat "$global_headerFile" > "$filename"
     echo "<title>$title</title>" >> "$filename"
+    echo "</head><body>" >> "$filename"
     # body divs
     echo '<div id="divbodyholder">' >> "$filename"
     echo '<div class="headerholder"><div class="header">' >> "$filename"
