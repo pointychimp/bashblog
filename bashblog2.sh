@@ -160,12 +160,13 @@ usage() {
 # $2    filename
 fillPostTemplate() {
     log "[Info] Applying template to $2"
+    local date=$(date +'%Y%m%d')
     local datetime=$(date +'%Y%m%d%H%M%S')
     if [[ $1 == "md" ]]; then local content="This is the body of your post. You may format with **markdown**.\n\nUse as many lines as you wish.";
     else local content="<p>This is the body of your post. You may format with <b>html</b></p>\n\n<p>Use as many lines as you wish.</p>"; fi
     echo "---------DO-NOT-EDIT-THIS-SECTION----------"  > $2
     echo $1                                            >> $2 # format 
-    echo $datetime                                     >> $2 # original datetime
+    echo $date                                         >> $2 # original datetime
     echo $datetime                                     >> $2 # edit datetime
     echo "----------------POST-CONTENT---------------" >> $2
     echo "Title goes on this line"                     >> $2
@@ -190,30 +191,93 @@ sync() {
     
 }
 
+# fetches desired info from passed filename
+#
+# $1    label for desired info: "format", "postDate", "editDate"
+# $2    filename to get the info from
+getFromSource() {
+    while read line # gets line 1
+    do
+        read line # gets line 2
+        if [[ "$1" == "format" ]]; then
+            echo "$line"
+        fi
+        read line # gets line 3
+        if [[ "$1" == "postDate" ]]; then
+            echo "$line"
+        fi
+        read line # gets line 4
+        if [[ "$1" == "editDate" ]]; then
+            echo "$line"
+        fi
+        break            
+    done < "$2"
+}
+
+# changes a value in the passed source file
+# does not sync to a published file!
+#
+# $1    label for desired info to set: "format", "postDate", "editDate"
+# $2    value to change to
+# $3    filename to set info in
+setInSource() {
+    while read line # get line 1
+    do
+        read line # get line 2
+        if [[ "$1" == "format" ]]; then
+            local replacement="s/$line/$2/"
+            sed -i "$replacement" "$3"
+        fi
+        read line # get line 3
+        if [[ "$1" == "postDate" ]]; then
+            local replacement="s/$line/$2/"
+            sed -i "$replacement" "$3"
+        fi
+        read line # get line 4
+        if [[ "$1" == "editDate" ]]; then
+            local replacement="s/$line/$2/"
+            sed -i "$replacement" "$3"
+        fi
+        break
+    done < "$3"
+}
+
 # edit a file and start the process of republishing if needed
 # got here with "./bashblog2.sh edit filename"
 #
 # $1    filename to edit
 edit() {
     if [[ "$1" == *$global_sourceDir/* ]]; then
-        # get format from within file
-        log "[Info] Entering editor $EDTIOR"
+        # tell blogger that the edit date will be changed automatically
+        setInSource "editDate" "edit-date: auto changes after edit" "$1"
+        log "[Info] Entering editor $EDITOR"
         $EDITOR "$1"
         log "[Info] Exited editor $EDITOR"
         # set edit date in file
+        setInSource "editDate" "$(date +'%Y%m%d%H%M%S')" "$1"
         # republish it
-    elif [[ "$1" == *$global_draftDir/* ]]; then
-        # get format from within file
-        # set post and edit date in file
+        local publishedFile=$(parse "$1" "$global_htmlDir")
+        echo "Republished as "$(basename $publishedFile)
+        log "[Info] Republished $publishedFile"
+        sync
+    elif [[ "$1" == *$global_draftsDir/* ]]; then
         # use post func to edit and possibly publish
+        post "$(getFromSource "format" "$1")" "$1"
+        # don't need to sync, post func does it for us
     else
-        # warn that this will edit an arbitrary file
-            # and run sync func. Nothing more.
-        log "[Info] Entering editor $EDTIOR"
-        $EDITOR "$1"
-        log "[Info] Exited editor $EDITOR"
+        # warn that this will only edit an arbitrary file and run sync func
+        echo "You are going to edit a file outside of $global_draftsDir and $global_souceDir"
+        echo "You can do that, and I'll run the sync function (if any), but that's it."
+        echo -n "Are you sure you want to continue? (y/N) "; 
+        read response && echo
+        response=$(echo $response | tr '[:upper:]' '[:lower:]')
+        if [[ "$response" == "y" ]]; then
+            log "[Info] Entering editor $EDITOR"
+            $EDITOR "$1"
+            log "[Info] Exited editor $EDITOR"
+            sync
+        fi
     fi
-    sync
 }
 
 # parse the given file into html
@@ -294,7 +358,7 @@ parse() {
 # returns $7
 createHtmlPage() {
     local format=$1
-    local postDate=$2; postDate="${postDate:0:8} ${postDate:8:2}:${postDate:10:2}:${postDate:12:2}"
+    local postDate=$2;# postDate="${postDate:0:8} ${postDate:8:2}:${postDate:10:2}:${postDate:12:2}"
     local editDate=$3; editDate="${editDate:0:8} ${editDate:8:2}:${editDate:10:2}:${editDate:12:2}"
     local title="$4"
     local content="$5"; [[ $format == "md" ]] && content=$(markdown "$content")
@@ -344,7 +408,7 @@ createHtmlPage() {
 # $2    filename, optional
 post() {
     local format=$1
-    local filename="$filename"
+    local filename="$2"
     # if no filename passed, posting a new file. Make a temp file
     if [[ -z "$filename" ]]; then
         filename="$global_tempDir/$RANDOM$RANDOM$RANDOM"
@@ -352,7 +416,7 @@ post() {
     fi
     # do any editing if the blogger wants to
     local postResponse="e"
-    while [[ $postResponse != "p" ]] && [[ $postResponse != "s" ]] && [[ $postResponse != "q" ]]
+    while [[ $postResponse != "p" ]] && [[ $postResponse != "d" ]] && [[ $postResponse != "q" ]]
     do
         $EDITOR "$filename"
         # see if blogger wants to preview post
@@ -388,10 +452,10 @@ post() {
         # echo/log afterwards because need title of post in echo/log
         echo "Publishing "$(basename $parsedPost)
         log "[Info] Publishing $parsedPost"
-    elif [[ $postResponse == "s" ]]; then
+    elif [[ $postResponse == "d" ]]; then
         local parsedPost="$(parse "$filename" "$global_tempDir")"
-        echo "Saving $global_draftDir"$(basename $parsedPost)".$format"
-        log "[Info] Saving $global_draftDir"$(basename $parsedPost .html)".$format"
+        echo "Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
+        log "[Info] Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
         mv "$filename" "$global_draftsDir/"$(basename $parsedPost .html)".$format"
     elif [[ $postResponse == "q" ]]; then
         log "[Info] Post process halted"
