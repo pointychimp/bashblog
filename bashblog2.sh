@@ -31,12 +31,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# location of config/log files
+# location of config file
 # values found in here overload defaults in this script
 # expected format:
 # key="value"
 global_config="bashblog2.conf"
+# log file defined outside of initializeGlobalVariables
+# b/c logging starts before it would be defined!
 global_logFile="bashblog2.log"
+# these are needed in order to exit entire script
+# even when inside a subshell. ex: $(parse ......)
+PID=$$
+trap "builtin exit" TERM
 
 # run at beginning of script to generate globals
 #
@@ -45,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
     
     global_softwareName="BashBlog2"
-    global_softwareVersion="0.1.3a"
+    global_softwareVersion="0.2a"
     
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -65,8 +71,7 @@ initializeGlobalVariables() {
     global_headerFile=".header.html" # header file 
     global_footerFile=".footer.html" # footer file 
     global_blogcssFile="blog.css" # blog's styling
-   
-    
+       
     global_feed="feed.rss" # rss feed file
     global_feedLength="10" # num of articles to include in feed
     
@@ -217,24 +222,21 @@ parse() {
             if [[ -z "$format" ]]; then
                 format="$line"
                 if [[ $format != "md" ]] && [[ $format != "html" ]]; then
-                    echo "Couldn't parse file: invalid format"
-                    exit "[Error] Couldn't parse file: invalid format"
+                    exit "[Error] Couldn't parse file: invalid format" "Couldn't parse file: invalid format"
                 fi
             fi
             read line # posting date, should never change
             if [[ -z "$postDate" ]]; then
                 postDate="$line"
                 if [[ ! $postDate =~ ^[0-9]+$ ]]; then
-                    echo "Couldn't parse file: invalid date"
-                    exit "[Error] Couldn't parse file: invalid date"
+                    exit "[Error] Couldn't parse file: invalid post date" "Couldn't parse file: invalid date"
                 fi
             fi
             read line # edit date, changes when editing after publication
             if [[ -z "$editDate" ]]; then
                 editDate="$line"
                 if [[ ! $editDate =~ ^[0-9]+$ ]]; then
-                    echo "Couldn't parse file: invalid date"
-                    exit "[Error] Couldn't parse file: invalid date"
+                    exit "[Error] Couldn't parse file: invalid edit date" "Couldn't parse file: invalid date"
                 fi
             fi
         elif [[ "$line" == "----------------POST-CONTENT---------------" ]]; then
@@ -251,8 +253,7 @@ parse() {
             # get tags, except first thing will be the divider so continue first
             [[ "$line" == "---------POST-TAGS---ONE-PER-LINE----------" ]] && continue
             if [[ $line =~ ^.*\;.*$ ]]; then
-                echo "Coudln't parse file: tags can't have \";\" in them"
-                exit "[Error] Couldn't parse file: bad tags"
+                exit "[Error] Couldn't parse file: bad tags" "Coudln't parse file: tags can't have \";\" in them"
             else
                 # append latest tag to list, dividing each with ";"
                 [[ ! -z "$tags" ]] && tags="$tags;$line" || tags="$line"
@@ -338,15 +339,15 @@ post() {
     do
         $EDITOR "$filename"
         # see if blogger wants to preview post
-        local previewResponse="y"
+        local previewResponse="n"
         echo -n "Preview post? (y/N) "
         read previewResponse && echo
         previewResponse=$(echo $previewResponse | tr '[:upper:]' '[:lower:]')
         if [[ $previewResponse == "y" ]]; then
             # yes he does
-            log "[Info] Generating preview"
-            local parsedPreview=$(parse "$filename" "$global_htmlDir/preview") # filename of where preview is on disk
+            local parsedPreview="$(parse "$filename" "$global_htmlDir/preview")" # filename of where source is on disk
             local url=$global_url"$(echo $parsedPreview | sed "s/$global_htmlDir//")" # url of preview, assuming sync is set up
+            log "[Info] Generating preview $parsedPreview"
             sync
             echo "See $parsedPreview"
             echo "or $url"
@@ -361,15 +362,24 @@ post() {
         postResponse=$(echo $postResponse | tr '[:upper:]' '[:lower:]')
     done
     if [[ $postResponse == "p" ]]; then
-        # todo
-        log "[Info] Publishing"
+        # don't know if blogger previewed, so just delete any preview
+        # and reparse, but this time into htmldir directly
+        [[ -f "$parsedPreview" ]] && rm "$parsedPreview"
+        local parsedPost="$(parse "$filename" "$global_htmlDir")"
+        # move source from tempdir to sourcedir, renaming to nice name
+        mv "$filename" "$global_sourceDir/"$(basename $parsedPost .html)".$format" 
+        # echo/log afterwards because need title of post in echo/log
+        echo "Publishing "$(basename $parsedPost)
+        log "[Info] Publishing $parsedPost"
     elif [[ $postResponse == "s" ]]; then
-        # todo
+        echo "Saving $title in drafts"
         log "[Info] Saving as draft"
+        mv "$filename" "$global_sourceDir/$title.$format"
     elif [[ $postResponse == "d" ]]; then
         log "[Info] Deleting"
         rm "$parsedPreview"
     fi
+    sync
     
 }
 
@@ -484,11 +494,13 @@ log() {
 
 # overload of exit function
 #
-# $1 optional message to log
+# $1    optional message to log
+# $2    optional message to print (requires $1 to exist)
 exit() {
     [[ ! -z "$1" ]] && log "$1"
+    [[ ! -z "$2" ]] && echo "$2"
     log "[Info] Ending run"
-    builtin exit # exit program
+    kill -s TERM $PID
 }
 
 ########################################################################
@@ -497,7 +509,7 @@ exit() {
 log "[Info] Starting run"
 initialize
 # make sure $EDITOR is set
-[[ -z $EDITOR ]] && echo "Set \$EDITOR enviroment variable" && exit "[Error] \$EDITOR not exported"
+[[ -z $EDITOR ]] && exit "[Error] \$EDITOR not exported" "Set \$EDITOR enviroment variable"
 # check for valid arguments
 # chain them together like [[  ]] && [[  ]] && ... && usage && exit
 [[ $1 != "edit" ]] && [[ $1 != "post" ]] && usage && exit
@@ -509,11 +521,9 @@ initialize
 # $2    filename
 if [[ $1 == "edit" ]]; then
     if [[ $# -lt 2 ]]; then
-        echo "Enter a valid file to edit"
-        exit "[Error] No file passed"
+        exit "[Error] No file passed" "Enter a valid file to edit"
     elif [[ ! -f "$2" ]]; then
-        echo "$2 does not exist"
-        exit "[Error] File does not exist"
+        exit "[Error] File does not exist" "$2 does not exist"
     else
         backup
         edit "$2" # $2 is a filename
@@ -538,6 +548,7 @@ if [[ $1 == "post" ]]; then
         # no filename, generate new file
         if [[ $2 == "markdown" ]]; then format="md";
         else format="html"; fi
+        backup
         log "[Info] Going to post a new $format file"
         post $format
     elif [[ -f "$filename" ]]; then
@@ -547,20 +558,19 @@ if [[ $1 == "post" ]]; then
             log "[Warning] Assuming markdown file based on extension"
             format="md"
         elif [[ ! $extension == "md" ]] && [[ $2 == "markdown" ]]; then
-            echo "$filename isn't markdown. If it is, change the extension."
-            exit "[Error] $filename is not markdown"
+            exit "[Error] $filename is not markdown" "$filename isn't markdown. If it is, change the extension."
         elif [[ $extension == "md" ]]; then format="md";
         elif [[ $extension == "html" ]]; then format="html";
         else
             log "[Warning] Unknown extension. Assuming file is html"
             format="html"
         fi
+        backup
         log "[Info] Going to post $filename"
         post $format $filename
     elif [[ ! -f "$filename" ]]; then
         # filename, but file doesn't exist
-        echo "$filename does not exist"
-        exit "[Error] File does not exist"
+        exit "[Error] $filename does not exist" "$filename does not exist"
     fi
 fi
 #############
