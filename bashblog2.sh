@@ -42,6 +42,8 @@ global_logFile="bashblog2.log"
 #
 # takes no args
 initializeGlobalVariables() {
+    log "[Info] Loading default globals"
+    
     global_softwareName="BashBlog2"
     global_softwareVersion="0.1.2a"
     
@@ -54,9 +56,8 @@ initializeGlobalVariables() {
     global_license="CC by-nc-nd" # "&copy;" for copyright, for example
    
     global_sourceDir="source" # dir for easy-to-edit source             # best  
-    global_draftsDir="drafts" # dir for drafts                          # to
-    global_htmlDir="html" # dir for final html files                    # leave
-    global_previewDir="$global_htmlDir/preview" # dir for previews      # these
+    global_draftsDir="drafts" # dir for drafts                          # to leave
+    global_htmlDir="html" # dir for final html files                    # these
     global_tempDir="/tmp/$global_softwareName" # dir for pending files  # alone
    
     global_indexFile="index.html" # index page, best to leave alone
@@ -189,7 +190,9 @@ sync() {
 #
 # $1    filename to edit
 edit() {
+    log "[Info] Starting edit"
     $EDITOR "$1"
+    log "[Info] Ending edit"
 }
 
 # parse the given file into html
@@ -274,10 +277,10 @@ parse() {
 # returns $7
 createHtmlPage() {
     local format=$1
-    local postDate=$2
-    local editDate=$3
+    local postDate=$2; postDate="${postDate:0:8} ${postDate:8:2}:${postDate:10:2}:${postDate:12:2}"
+    local editDate=$3; editDate="${editDate:0:8} ${editDate:8:2}:${editDate:10:2}:${editDate:12:2}"
     local title="$4"
-    local content="$5"
+    local content="$5"; [[ $format == "md" ]] && content=$(markdown "$content")
     local tagList="$6"
     local filename="$7"
     
@@ -300,7 +303,18 @@ createHtmlPage() {
         # remove possible <p>'s on the title because of markdown conversion
         echo "$(echo "$title" | sed 's/<\/*p>//g')" >> "$filename"
         echo '</a></h3>' >> "$filename"
+        echo '<div class="subtitle">'$(date +"$niceDateFormat" --date="$postDate") ' &mdash; ' >> "$filename"
+        echo "$global_author</div>" >> "$filename"
+        echo '<!-- text begin -->' >> "$filename" # This marks the beginning of the actual content
     fi
+    echo -e "$content" >> "$filename" # body of post finally
+    if [[ "$filename" != "$global_indexFile" ]]; then
+        echo '<!-- text end -->' >> "$filename"
+        echo '<!-- entry end -->' >> "$filename" # end of post
+    fi
+    echo '</div>' >> "$filename" # content
+    cat "$global_footerFile" >> "$filename"
+    echo '</body></html>' >> "$filename"
     
     echo $7
 }
@@ -331,9 +345,7 @@ post() {
         if [[ $previewResponse == "y" ]]; then
             # yes he does
             log "[Info] Generating preview"
-            local parsedPreview=$(parse "$filename" "$global_previewDir") # filename of where preview is on disk
-            # possible bug: it is not safe to assume that we can remove $global_htmlDir because $global_previewDir is a sub dir of it
-            # it may not be a subdir of $global_htmlDir. This is why it those settings are best left alone!
+            local parsedPreview=$(parse "$filename" "$global_htmlDir/preview") # filename of where preview is on disk
             local url=$global_url"$(echo $parsedPreview | sed "s/$global_htmlDir//")" # url of preview, assuming sync is set up
             sync
             echo "See $parsedPreview"
@@ -350,13 +362,13 @@ post() {
     done
     if [[ $postResponse == "p" ]]; then
         # todo
-        log "[Info] publishing"
+        log "[Info] Publishing"
     elif [[ $postResponse == "s" ]]; then
         # todo
-        log "[Info] saving"
+        log "[Info] Saving as draft"
     elif [[ $postResponse == "d" ]]; then
         # todo
-        log "[Info] moving to drafts"
+        log "[Info] Deleting"
     fi
     
 }
@@ -372,6 +384,15 @@ backup() {
     chmod 600 $global_backupFile
 }
 
+# takes markdown-formatted string and
+# returns html-formatted string
+#
+# $1 markdown-formatted string
+markdown() {
+    log "[Info] Translating markdown"
+    echo -e "$1" | $markdownBinary
+}
+
 # if the file does not already exist,
 # creates style sheet from scratch
 #
@@ -383,7 +404,8 @@ createCss() {
     # or may be ready to style things that haven't been implemented yet in bashblog2.
     #
     # This needs to be reviewed.
-    if [[ ! -f "$global_blogcssFile" ]]; then
+    if [[ ! -f "$global_htmlDir/$global_blogcssFile" ]]; then
+    log "[Warning] blog.css file not found. Regenerating from scratch"
     echo 'body{font-family:Georgia,"Times New Roman",Times,serif;margin:0;padding:0;background-color:#F3F3F3;}
 #divbodyholder{padding:5px;background-color:#DDD;width:874px;margin:24px auto;}
 #divbody{width:776px;border:solid 1px #ccc;background-color:#fff;padding:0px 48px 24px 48px;top:0;}
@@ -412,6 +434,7 @@ h1{margin-bottom:12px !important;}
 h3{margin-top:42px;margin-bottom:8px;}
 h4{margin-left:24px;margin-right:24px;}
 #twitter{line-height:20px;vertical-align:top;text-align:right;font-style:italic;color:#333;margin-top:24px;font-size:14px;}' > "$global_htmlDir/$global_blogcssFile"
+    [[ ! -f "$global_htmlDir/preview/$global_blogcssFile" ]] && ln -s "../$global_blogcssFile" "$global_htmlDir/preview/$global_blogcssFile"
     fi
 }
 
@@ -420,28 +443,32 @@ h4{margin-left:24px;margin-right:24px;}
 #
 # takes no args
 createHeaderFooter() {
-    echo $global_headerFile
     if [[ ! -f "$global_headerFile" ]]; then
+    log "[Warning] header file not found. Regenerating from scratch"
         echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
 <link rel="stylesheet" href="'$global_blogcssFile'" type="text/css" />' > "$global_headerFile"
     fi
     if [[ ! -f "$global_footerFile" ]]; then
+    log "[Warning] footer file not found. Regenerating from scratch"
         local protected_mail="$(echo "$global_email" | sed 's/@/\&#64;/g' | sed 's/\./\&#46;/g')"
         echo '<div id="footer">'$global_license '<a href="'$global_author_url'">'$global_author'</a> &mdash; <a href="mailto:'$protected_mail'">'$protected_mail'</a><br/>
 Generated with <a href="https://github.com/pointychimp/bashblog2">bashblog2</a>, based on <a href="https://github.com/cfenollosa/bashblog">bashblog</a></div>' > "$global_footerFile"
     fi
 }
 
-# creates css file(s), makes directories, etc
+# prepare everything to get ready
+# creates css file(s), makes directories,
+# get global variables initialized, etc.
 #
 # takes no args
 initialize() {
+    log "[Info] Initializing"
     detectDateVersion
-    initializeGlobalVariables # initalize and load global variables from config
-    [[ -f "$global_config" ]] && source "$global_config" &> /dev/null
-    mkdir -p "$global_sourceDir" "$global_draftsDir" "$global_htmlDir" "$global_previewDir" "$global_tempDir"
+    initializeGlobalVariables
+    [[ -f "$global_config" ]] && log "[Info] Overloading globals with $global_config" && source "$global_config" &> /dev/null
+    mkdir -p "$global_sourceDir" "$global_draftsDir" "$global_htmlDir/preview" "$global_tempDir"
     createCss
     createHeaderFooter
 }
@@ -511,7 +538,7 @@ if [[ $1 == "post" ]]; then
         # no filename, generate new file
         if [[ $2 == "markdown" ]]; then format="md";
         else format="html"; fi
-        log "[Info] Starting post process on new post"
+        log "[Info] Going to post a new $format file"
         post $format
     elif [[ -f "$filename" ]]; then
         # filename, and file exists, post it
@@ -528,7 +555,7 @@ if [[ $1 == "post" ]]; then
             log "[Warning] Unknown extension. Assuming file is html"
             format="html"
         fi
-        log "[Info] Starting post process on $filename"
+        log "[Info] Going to post $filename"
         post $format $filename
     elif [[ ! -f "$filename" ]]; then
         # filename, but file doesn't exist
