@@ -45,7 +45,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
     
     global_softwareName="BashBlog2"
-    global_softwareVersion="0.1.2a"
+    global_softwareVersion="0.1.3a"
     
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -367,8 +367,8 @@ post() {
         # todo
         log "[Info] Saving as draft"
     elif [[ $postResponse == "d" ]]; then
-        # todo
         log "[Info] Deleting"
+        rm "$parsedPreview"
     fi
     
 }
@@ -378,7 +378,7 @@ post() {
 #
 # takes no args
 backup() {
-    local backupList="$global_sourceDir $global_draftsDir $global_htmlDir $global_tempDir"
+    local backupList="$global_sourceDir $global_draftsDir $global_htmlDir $global_config"
     tar cfz $global_backupFile $backupList &> /dev/null
     [[ $? -ne 0 ]] && log "[Warning] Backup error"
     chmod 600 $global_backupFile
