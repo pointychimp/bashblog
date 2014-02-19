@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
     
     global_softwareName="BashBlog2"
-    global_softwareVersion="0.2a"
+    global_softwareVersion="0.2.1a"
     
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -335,7 +335,7 @@ post() {
     fi
     # do any editing if the blogger wants to
     local postResponse="e"
-    while [[ $postResponse != "p" ]] && [[ $postResponse != "s" ]] && [[ $postResponse != "d" ]]
+    while [[ $postResponse != "p" ]] && [[ $postResponse != "s" ]] && [[ $postResponse != "q" ]]
     do
         $EDITOR "$filename"
         # see if blogger wants to preview post
@@ -357,14 +357,14 @@ post() {
             echo "" &> /dev/null
         fi
         
-        echo -n "(p)ublish, (E)dit, (s)ave draft, (d)iscard: "
+        echo -n "[P]ublish, [E]dit, [D]raft for later, [Q]uit? (p/E/d/q) "
         read postResponse && echo
         postResponse=$(echo $postResponse | tr '[:upper:]' '[:lower:]')
     done
+    # don't know if blogger previewed, so just delete any preview
+    [[ -f "$parsedPreview" ]] && rm "$parsedPreview" && log "[Info] Deleted $parsedPreview"
     if [[ $postResponse == "p" ]]; then
-        # don't know if blogger previewed, so just delete any preview
-        # and reparse, but this time into htmldir directly
-        [[ -f "$parsedPreview" ]] && rm "$parsedPreview"
+        # parse directly into htmldir
         local parsedPost="$(parse "$filename" "$global_htmlDir")"
         # move source from tempdir to sourcedir, renaming to nice name
         mv "$filename" "$global_sourceDir/"$(basename $parsedPost .html)".$format" 
@@ -372,12 +372,12 @@ post() {
         echo "Publishing "$(basename $parsedPost)
         log "[Info] Publishing $parsedPost"
     elif [[ $postResponse == "s" ]]; then
-        echo "Saving $title in drafts"
-        log "[Info] Saving as draft"
-        mv "$filename" "$global_sourceDir/$title.$format"
-    elif [[ $postResponse == "d" ]]; then
-        log "[Info] Deleting"
-        rm "$parsedPreview"
+        local parsedPost="$(parse "$filename" "$global_tempDir")"
+        echo "Saving $global_draftDir"$(basename $parsedPost)".$format"
+        log "[Info] Saving $global_draftDir"$(basename $parsedPost .html)".$format"
+        mv "$filename" "$global_draftsDir/"$(basename $parsedPost .html)".$format"
+    elif [[ $postResponse == "q" ]]; then
+        log "[Info] Post process halted"
     fi
     sync
     
