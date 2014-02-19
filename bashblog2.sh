@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
     
     global_softwareName="BashBlog2"
-    global_softwareVersion="0.2.1a"
+    #global_softwareVersion="1.0b"
     
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -195,9 +195,25 @@ sync() {
 #
 # $1    filename to edit
 edit() {
-    log "[Info] Starting edit"
-    $EDITOR "$1"
-    log "[Info] Ending edit"
+    if [[ "$1" == *$global_sourceDir/* ]]; then
+        # get format from within file
+        log "[Info] Entering editor $EDTIOR"
+        $EDITOR "$1"
+        log "[Info] Exited editor $EDITOR"
+        # set edit date in file
+        # republish it
+    elif [[ "$1" == *$global_draftDir/* ]]; then
+        # get format from within file
+        # set post and edit date in file
+        # use post func to edit and possibly publish
+    else
+        # warn that this will edit an arbitrary file
+            # and run sync func. Nothing more.
+        log "[Info] Entering editor $EDTIOR"
+        $EDITOR "$1"
+        log "[Info] Exited editor $EDITOR"
+    fi
+    sync
 }
 
 # parse the given file into html
