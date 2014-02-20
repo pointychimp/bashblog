@@ -269,11 +269,17 @@ edit() {
     if [[ "$1" == *$global_sourceDir/* ]]; then
         # tell blogger that the edit date will be changed automatically
         setInSource "editDate" "edit-date: auto changes after edit" "$1"
+        # tell blogger that he can't change the title
+        local title=$(getFromSource "title" "$1")
+        setInSource "title" "Can't change title: $title" "$1"
+        # do actual editing
         log "[Info] Entering editor $EDITOR"
         $EDITOR "$1"
         log "[Info] Exited editor $EDITOR"
         # set edit date in file
         setInSource "editDate" "$(date +'%Y%m%d%H%M%S')" "$1"
+        # set title back to original title
+        setInSource "title" "$title" "$1"
         # republish it
         local publishedFile=$(parse "$1" "$global_htmlDir")
         echo "Republished as "$(basename $publishedFile)
