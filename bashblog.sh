@@ -284,6 +284,7 @@ edit() {
         local publishedFile=$(parse "$1" "$global_htmlDir" $global_htmlDir/$(echo $(basename "$1") | sed 's/html$\|md$/html/'))
         echo "Republished as "$(basename $publishedFile)
         log "[Info] Republished $publishedFile"
+        buildIndex
         sync
     elif [[ "$1" == *$global_draftsDir/* ]]; then
         # use post func to edit and possibly publish
@@ -300,6 +301,7 @@ edit() {
             log "[Info] Entering editor $EDITOR"
             $EDITOR "$1"
             log "[Info] Exited editor $EDITOR"
+            buildIndex
             sync
         fi
     fi
@@ -414,7 +416,7 @@ createHtmlPage() {
     echo '<div id="divbody"><div class="content">' >> "$filename"
 
     # not doing index, just one entry
-    if [[ "$filename" != "$global_indexFile" ]]; then
+    if [[ "$filename" != "$global_htmlDir/$global_indexFile" ]]; then
         echo '<!-- entry begin -->' >> "$filename" # marks the beginning of the whole post
         echo '<h3><a class="ablack" href="'$global_url"$(echo $filename | sed "s/$global_htmlDir//")"'">' >> "$filename"
         # remove possible <p>'s on the title because of markdown conversion
@@ -425,9 +427,11 @@ createHtmlPage() {
         echo '<!-- text begin -->' >> "$filename" # This marks the beginning of the actual content
     fi
     echo -e "$content" >> "$filename" # body of post finally
-    # list tags
-    echo "Tags: <code>"$(echo $tagList | sed 's/;/<\/code> , <code>/g')"</code>" >> "$filename"
-    if [[ "$filename" != "$global_indexFile" ]]; then
+    # not doing index, just one entry
+    if [[ "$filename" != "$global_htmlDir/$global_indexFile" ]]; then
+    
+        # list tags
+        [[ ! -z "$tagList" ]] && echo "Tags: <code>"$(echo $tagList | sed 's/;/<\/code>, <code>/g')"</code>" >> "$filename"
         echo '<!-- text end -->' >> "$filename"
         echo '<!-- entry end -->' >> "$filename" # end of post
     fi
@@ -436,6 +440,31 @@ createHtmlPage() {
     echo '</body></html>' >> "$filename"
 
     echo $7
+}
+
+# generate $global_indexFile again,
+# containing up to the last ten posts' contents
+#
+# takes no args
+buildIndex() {
+    log "[Info] Starting build of $global_indexFile"
+    local content
+    local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
+    local unsortedList
+    local n=0
+    while [[ n -lt $global_feedLength ]] && read line
+    do
+        unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
+        n=$(($n+1));
+    done <<< "$postList"
+    local sortedList=$(echo -e $unsortedList | sort -r)
+    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
+    do
+        local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
+        content="$content\n"$(awk '/<!-- entry begin -->/, /<!-- entry end -->/' "$publishedFile")
+    done
+    createHtmlPage "" "" "" "" "$content" "" "$global_htmlDir/$global_indexFile"
+    log "[Info] Done building $global_indexFile"
 }
 
 # publish a file
@@ -497,6 +526,7 @@ post() {
     elif [[ $postResponse == "q" ]]; then
         log "[Info] Post process halted"
     fi
+    buildIndex
     sync
 
 }
@@ -626,6 +656,7 @@ exit() {
 ########################################################################
 log "[Info] Starting run"
 initialize
+
 # make sure $EDITOR is set
 [[ -z $EDITOR ]] && exit "[Error] \$EDITOR not exported" "Set \$EDITOR enviroment variable"
 # check for valid arguments
