@@ -193,7 +193,7 @@ sync() {
 
 # fetches desired info from passed filename
 #
-# $1    label for desired info: "format", "postDate", "editDate"
+# $1    label for desired info: "format", "postDate", "editDate", "title"
 # $2    filename to get the info from
 getFromSource() {
     while read line # gets line 1
@@ -201,14 +201,23 @@ getFromSource() {
         read line # gets line 2
         if [[ "$1" == "format" ]]; then
             echo "$line"
+            break
         fi
         read line # gets line 3
         if [[ "$1" == "postDate" ]]; then
             echo "$line"
+            break
         fi
         read line # gets line 4
         if [[ "$1" == "editDate" ]]; then
             echo "$line"
+            break
+        fi
+        read line # gets line 5
+        read line # gets line 6
+        if [[ "$1" == "title" ]]; then
+            echo "$line"
+            break
         fi
         break            
     done < "$2"
@@ -217,7 +226,7 @@ getFromSource() {
 # changes a value in the passed source file
 # does not sync to a published file!
 #
-# $1    label for desired info to set: "format", "postDate", "editDate"
+# $1    label for desired info to set: "format", "postDate", "editDate", "title"
 # $2    value to change to
 # $3    filename to set info in
 setInSource() {
@@ -227,16 +236,26 @@ setInSource() {
         if [[ "$1" == "format" ]]; then
             local replacement="s/$line/$2/"
             sed -i "$replacement" "$3"
+            break
         fi
         read line # get line 3
         if [[ "$1" == "postDate" ]]; then
             local replacement="s/$line/$2/"
             sed -i "$replacement" "$3"
+            break
         fi
         read line # get line 4
         if [[ "$1" == "editDate" ]]; then
             local replacement="s/$line/$2/"
             sed -i "$replacement" "$3"
+            break
+        fi
+        read line # get line 5
+        read line # get line 6
+        if [[ "$1" == "title" ]]; then
+            local replacement="s/$line/$2/"
+            sed -i "$replacement" "$3"
+            break
         fi
         break
     done < "$3"
