@@ -281,7 +281,7 @@ edit() {
         # set title back to original title
         setInSource "title" "$title" "$1"
         # republish it
-        local publishedFile=$(parse "$1" "$global_htmlDir")
+        local publishedFile=$(parse "$1" "$global_htmlDir" $global_htmlDir/$(echo $(basename "$1") | sed 's/html$\|md$/html/'))
         echo "Republished as "$(basename $publishedFile)
         log "[Info] Republished $publishedFile"
         sync
@@ -310,6 +310,7 @@ edit() {
 #
 # $1    file to parse
 # $2    dir to put parsed .html file into
+# $3    overwriteFile, not empty if want to ignore filename conflicts. Contains name of file to overwrite
 # returns $2/title-of-post.html
 parse() {
     local format
@@ -320,6 +321,7 @@ parse() {
     local tags
     local filename
     local onTags="false"
+    local overwriteFile="$3"
     local line
     while read line; do
         if [[ "$line" == "---------DO-NOT-EDIT-THIS-SECTION----------" ]]; then
@@ -349,6 +351,7 @@ parse() {
             title="$line" 
             # get filename based on title: all lower case, spaces to dashes, all alphanumeric
             filename="$2/$(echo $title | tr [:upper:] [:lower:] | sed 's/\ /-/g' | tr -dc '[:alnum:]-').html"
+            # if wanting to overwrite
             read line # spacer between title and content
         elif [[ "$line" != "---------POST-TAGS---ONE-PER-LINE----------" ]] && [[ $onTags == "false" ]]; then
             # get everything before tag divider into the content variable
@@ -365,6 +368,13 @@ parse() {
             fi
         fi
     done < "$1"
+    # make sure filename is unique if no overwriteFile specified
+    while [[ -f "$filename" ]] && [[ -z "$overwriteFile" ]]; do
+        filename=$(echo $filename | sed 's/\.html$//')"-$RANDOM.html"
+    done
+    if [[ ! -z "$overwriteFile" ]]; then
+        filename="$overwriteFile"
+    fi
     
     createHtmlPage $format $postDate $editDate "$title" "$content" "$tags" "$filename"
 }
@@ -415,6 +425,8 @@ createHtmlPage() {
         echo '<!-- text begin -->' >> "$filename" # This marks the beginning of the actual content
     fi
     echo -e "$content" >> "$filename" # body of post finally
+    # list tags
+    echo "Tags: <code>"$(echo $tagList | sed 's/;/<\/code> , <code>/g')"</code>" >> "$filename"
     if [[ "$filename" != "$global_indexFile" ]]; then
         echo '<!-- text end -->' >> "$filename"
         echo '<!-- entry end -->' >> "$filename" # end of post
@@ -441,7 +453,7 @@ post() {
     fi
     # do any editing if the blogger wants to
     local postResponse="e"
-    while [[ $postResponse != "p" ]] && [[ $postResponse != "d" ]] && [[ $postResponse != "q" ]]
+    while [[ "$postResponse" != "p" ]] && [[ "$postResponse" != "d" ]] && [[ "$postResponse" != "q" ]]
     do
         $EDITOR "$filename"
         # see if blogger wants to preview post
@@ -449,7 +461,7 @@ post() {
         echo -n "Preview post? (y/N) "
         read previewResponse && echo
         previewResponse=$(echo $previewResponse | tr '[:upper:]' '[:lower:]')
-        if [[ $previewResponse == "y" ]]; then
+        if [[ "$previewResponse" == "y" ]]; then
             # yes he does
             local parsedPreview="$(parse "$filename" "$global_htmlDir/preview")" # filename of where source is on disk
             local url=$global_url"$(echo $parsedPreview | sed "s/$global_htmlDir//")" # url of preview, assuming sync is set up
@@ -649,6 +661,12 @@ if [[ $1 == "post" ]]; then
     
     if [[ $2 == "markdown" ]]; then filename="$3";
     else filename="$2"; fi
+    
+    if [[ "$filename" == *$global_sourceDir/* ]]; then
+        echo "You can't post something from the $global_sourceDir directory."
+        echo "Try $0 edit $filename"
+        exit "[Error] Can't post out of $global_sourceDir"
+    fi
     
     if [[ -z "$filename" ]]; then
         # no filename, generate new file
