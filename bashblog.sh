@@ -8,10 +8,10 @@
 # This is a basic blog generator
 #
 # Program execution starts at the end of this file, after the final
-# function declaration. 
+# function declaration.
 #
 # todo: add more information here
-# 
+#
 ########################################################################
 #
 # LICENSE
@@ -35,10 +35,10 @@
 # values found in here overload defaults in this script
 # expected format:
 # key="value"
-global_config="bashblog2.conf"
+global_config="bashblog.conf"
 # log file defined outside of initializeGlobalVariables
 # b/c logging starts before it would be defined!
-global_logFile="bashblog2.log"
+global_logFile="bashblog.log"
 # these are needed in order to exit entire script
 # even when inside a subshell. ex: $(parse ......)
 PID=$$
@@ -49,10 +49,10 @@ trap "builtin exit" TERM
 # takes no args
 initializeGlobalVariables() {
     log "[Info] Loading default globals"
-    
-    global_softwareName="BashBlog2"
+
+    global_softwareName="BashBlog"
     #global_softwareVersion="1.0b"
-    
+
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
     global_url="http://example.com/blog" # top-level URL for accessing blog
@@ -60,25 +60,25 @@ initializeGlobalVariables() {
     global_authorUrl="$global_url" # optional link to a a facebook profile, etc.
     global_email="johndoe@example.com" # your email
     global_license="CC by-nc-nd" # "&copy;" for copyright, for example
-   
-    global_sourceDir="source" # dir for easy-to-edit source             # best  
+
+    global_sourceDir="source" # dir for easy-to-edit source             # best
     global_draftsDir="drafts" # dir for drafts                          # to leave
     global_htmlDir="html" # dir for final html files                    # these
     global_tempDir="/tmp/$global_softwareName" # dir for pending files  # alone
-   
+
     global_indexFile="index.html" # index page, best to leave alone
     global_archiveFile="archive.html" # page to list all posts, best to leave alone
-    global_headerFile=".header.html" # header file 
-    global_footerFile=".footer.html" # footer file 
+    global_headerFile=".header.html" # header file
+    global_footerFile=".footer.html" # footer file
     global_blogcssFile="blog.css" # blog's styling
-       
+
     global_feed="feed.rss" # rss feed file
     global_feedLength="10" # num of articles to include in feed
-    
+
     global_syncFunction="" # example: "cp -r ./$global_htmlDir /mnt/backup/blog/"
-    
+
     global_backupFile="backup.tar.gz" # destination for backup
-    
+
     niceDateFormat="%B %d, %Y" # for displaying, not timestamps
     markdownBinary="$(which Markdown.pl)"
 }
@@ -165,7 +165,7 @@ fillPostTemplate() {
     if [[ $1 == "md" ]]; then local content="This is the body of your post. You may format with **markdown**.\n\nUse as many lines as you wish.";
     else local content="<p>This is the body of your post. You may format with <b>html</b></p>\n\n<p>Use as many lines as you wish.</p>"; fi
     echo "---------DO-NOT-EDIT-THIS-SECTION----------"  > $2
-    echo $1                                            >> $2 # format 
+    echo $1                                            >> $2 # format
     echo $date                                         >> $2 # original datetime
     echo $datetime                                     >> $2 # edit datetime
     echo "----------------POST-CONTENT---------------" >> $2
@@ -188,7 +188,7 @@ sync() {
     else
         log "[Info] No sync function"
     fi
-    
+
 }
 
 # fetches desired info from passed filename
@@ -219,7 +219,7 @@ getFromSource() {
             echo "$line"
             break
         fi
-        break            
+        break
     done < "$2"
 }
 
@@ -293,7 +293,7 @@ edit() {
         # warn that this will only edit an arbitrary file and run sync func
         echo "You are going to edit a file outside of $global_draftsDir and $global_souceDir"
         echo "You can do that, and I'll run the sync function (if any), but that's it."
-        echo -n "Are you sure you want to continue? (y/N) "; 
+        echo -n "Are you sure you want to continue? (y/N) ";
         read response && echo
         response=$(echo $response | tr '[:upper:]' '[:lower:]')
         if [[ "$response" == "y" ]]; then
@@ -348,7 +348,7 @@ parse() {
             fi
         elif [[ "$line" == "----------------POST-CONTENT---------------" ]]; then
             read line # title, then also convert into filename
-            title="$line" 
+            title="$line"
             # get filename based on title: all lower case, spaces to dashes, all alphanumeric
             filename="$2/$(echo $title | tr [:upper:] [:lower:] | sed 's/\ /-/g' | tr -dc '[:alnum:]-').html"
             # if wanting to overwrite
@@ -375,12 +375,12 @@ parse() {
     if [[ ! -z "$overwriteFile" ]]; then
         filename="$overwriteFile"
     fi
-    
+
     createHtmlPage $format $postDate $editDate "$title" "$content" "$tags" "$filename"
 }
 
-# takes parsed information 
-# and turns into an html file 
+# takes parsed information
+# and turns into an html file
 # ready for publishing (or previewing)
 #
 # $1    format, "md" or "html"
@@ -399,7 +399,7 @@ createHtmlPage() {
     local content="$5"; [[ $format == "md" ]] && content=$(markdown "$content")
     local tagList="$6"
     local filename="$7"
-    
+
     cat "$global_headerFile" > "$filename"
     echo "<title>$title</title>" >> "$filename"
     echo "</head><body>" >> "$filename"
@@ -412,7 +412,7 @@ createHtmlPage() {
     # title, header, headerholder respectively
     echo '</div></div></div>' >> "$filename"
     echo '<div id="divbody"><div class="content">' >> "$filename"
-    
+
     # not doing index, just one entry
     if [[ "$filename" != "$global_indexFile" ]]; then
         echo '<!-- entry begin -->' >> "$filename" # marks the beginning of the whole post
@@ -434,7 +434,7 @@ createHtmlPage() {
     echo '</div>' >> "$filename" # content
     cat "$global_footerFile" >> "$filename"
     echo '</body></html>' >> "$filename"
-    
+
     echo $7
 }
 
@@ -474,7 +474,7 @@ post() {
             # do nothing
             echo "" &> /dev/null
         fi
-        
+
         echo -n "[P]ublish, [E]dit, [D]raft for later, [Q]uit? (p/E/d/q) "
         read postResponse && echo
         postResponse=$(echo $postResponse | tr '[:upper:]' '[:lower:]')
@@ -485,7 +485,7 @@ post() {
         # parse directly into htmldir
         local parsedPost="$(parse "$filename" "$global_htmlDir")"
         # move source from tempdir to sourcedir, renaming to nice name
-        mv "$filename" "$global_sourceDir/"$(basename $parsedPost .html)".$format" 
+        mv "$filename" "$global_sourceDir/"$(basename $parsedPost .html)".$format"
         # echo/log afterwards because need title of post in echo/log
         echo "Publishing "$(basename $parsedPost)
         log "[Info] Publishing $parsedPost"
@@ -498,7 +498,7 @@ post() {
         log "[Info] Post process halted"
     fi
     sync
-    
+
 }
 
 # backup desired files to compressed tarball
@@ -527,7 +527,7 @@ markdown() {
 # takes no args
 createCss() {
     # this is basically a line-for-line copy of the original bashblog's css
-    # if you're comparing it to the original, this is the css for 
+    # if you're comparing it to the original, this is the css for
     # both the blog.css and main.css files. Some things may not be relevant anymore,
     # or may be ready to style things that haven't been implemented yet in bashblog2.
     #
@@ -658,16 +658,16 @@ fi
 if [[ $1 == "post" ]]; then
     format=""
     filename=""
-    
+
     if [[ $2 == "markdown" ]]; then filename="$3";
     else filename="$2"; fi
-    
+
     if [[ "$filename" == *$global_sourceDir/* ]]; then
         echo "You can't post something from the $global_sourceDir directory."
         echo "Try $0 edit $filename"
         exit "[Error] Can't post out of $global_sourceDir"
     fi
-    
+
     if [[ -z "$filename" ]]; then
         # no filename, generate new file
         if [[ $2 == "markdown" ]]; then format="md";
