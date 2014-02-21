@@ -193,7 +193,7 @@ sync() {
 
 # fetches desired info from passed filename
 #
-# $1    label for desired info: "format", "postDate", "editDate", "title"
+# $1    label for desired info: "format", "postDate", "editDate", "title", "tags"
 # $2    filename to get the info from
 getFromSource() {
     while read line # gets line 1
@@ -217,6 +217,18 @@ getFromSource() {
         read line # gets line 6
         if [[ "$1" == "title" ]]; then
             echo "$line"
+            break
+        fi
+        if [[ "$1" == "tags" ]]; then
+            local foundTags="false"
+            local tags
+            while read line
+            do
+                [[ $foundTags == "true" ]] && tags="$tags;$line" && continue
+                [[ "$line" == "---------POST-TAGS---ONE-PER-LINE----------" ]] && foundTags="true" && read line && tags="$line"
+            done
+            log "$tags"
+            echo "$tags"
             break
         fi
         break
@@ -284,6 +296,8 @@ edit() {
         local publishedFile=$(parse "$1" "$global_htmlDir" $global_htmlDir/$(echo $(basename "$1") | sed 's/html$\|md$/html/'))
         echo "Republished as "$(basename $publishedFile)
         log "[Info] Republished $publishedFile"
+        buildIndex
+        buildArchive
         sync
     elif [[ "$1" == *$global_draftsDir/* ]]; then
         # use post func to edit and possibly publish
@@ -300,6 +314,8 @@ edit() {
             log "[Info] Entering editor $EDITOR"
             $EDITOR "$1"
             log "[Info] Exited editor $EDITOR"
+            buildIndex
+            buildArchive
             sync
         fi
     fi
@@ -368,7 +384,7 @@ parse() {
             fi
         fi
     done < "$1"
-    # make sure filename is unique if no overwriteFile specified
+    # make sure filename is unique if no overwriteFile specified  
     while [[ -f "$filename" ]] && [[ -z "$overwriteFile" ]]; do
         filename=$(echo $filename | sed 's/\.html$//')"-$RANDOM.html"
     done
@@ -413,29 +429,96 @@ createHtmlPage() {
     echo '</div></div></div>' >> "$filename"
     echo '<div id="divbody"><div class="content">' >> "$filename"
 
-    # not doing index, just one entry
-    if [[ "$filename" != "$global_indexFile" ]]; then
+    # not doing index or archive, just one entry
+    if [[ "$filename" != "$global_htmlDir/$global_indexFile" ]] && [[ "$filename" != "$global_htmlDir/$global_archiveFile" ]]; then
         echo '<!-- entry begin -->' >> "$filename" # marks the beginning of the whole post
         echo '<h3><a class="ablack" href="'$global_url"$(echo $filename | sed "s/$global_htmlDir//")"'">' >> "$filename"
         # remove possible <p>'s on the title because of markdown conversion
         echo "$(echo "$title" | sed 's/<\/*p>//g')" >> "$filename"
         echo '</a></h3>' >> "$filename"
         echo '<div class="subtitle">'$(date +"$niceDateFormat" --date="$postDate") ' &mdash; ' >> "$filename"
-        echo "$global_author</div>" >> "$filename"
+        echo "$global_author" >> "$filename"
+        [[ ! -z "$tagList" ]] && echo "<br>Tags: <code>"$(echo $tagList | sed 's/;/<\/code>, <code>/g')"</code></div>" >> "$filename"
         echo '<!-- text begin -->' >> "$filename" # This marks the beginning of the actual content
     fi
     echo -e "$content" >> "$filename" # body of post finally
-    # list tags
-    echo "Tags: <code>"$(echo $tagList | sed 's/;/<\/code> , <code>/g')"</code>" >> "$filename"
-    if [[ "$filename" != "$global_indexFile" ]]; then
+    # not doing index, just one entry
+    if [[ "$filename" != "$global_htmlDir/$global_indexFile" ]] && [[ "$filename" != "$global_htmlDir/$global_archiveFile" ]]; then
         echo '<!-- text end -->' >> "$filename"
         echo '<!-- entry end -->' >> "$filename" # end of post
     fi
     echo '</div>' >> "$filename" # content
     cat "$global_footerFile" >> "$filename"
     echo '</body></html>' >> "$filename"
-
+    
     echo $7
+}
+
+# generate $global_indexFile again,
+# containing up to the last ten posts' contents
+#
+# takes no args
+buildIndex() {
+    log "[Info] Starting build of $global_indexFile"
+    local content
+    local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
+    local unsortedList
+    local n=0
+    while [[ n -lt $global_feedLength ]] && read line
+    do
+        if [[ "$line" == "$global_htmlDir/$global_indexFile" ]] || [[ "$line" == "$global_htmlDir/$global_archiveFile" ]]; then
+            continue
+        fi
+        unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
+        n=$(($n+1));
+    done <<< "$postList"
+    local sortedList=$(echo -e $unsortedList | sort -r)
+    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
+    do
+        local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
+        content="$content\n"$(awk '/<!-- entry begin -->/, /<!-- entry end -->/' "$publishedFile")
+    done
+    echo "Built "$(createHtmlPage "" "" "" "" "$content" "" "$global_htmlDir/$global_indexFile")
+    log "[Info] Done building $global_indexFile"
+}
+
+# generate $global_archiveFile again,
+# containing links to all posts ever made
+#
+# takes no args
+buildArchive() {
+    log "[Info] Starting build of $global_archiveFile"
+    local content="<h3>All posts</h3>"
+    content="$content\n<ul>"
+    
+    
+    local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
+    local unsortedList
+    while read line
+    do
+        if [[ "$line" == "$global_htmlDir/$global_indexFile" ]] || [[ "$line" == "$global_htmlDir/$global_archiveFile" ]]; then
+            continue
+        fi
+        unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
+        n=$(($n+1));
+    done <<< "$postList"
+    local sortedList=$(echo -e $unsortedList | sort -r)
+    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
+    do
+        local title=$(getFromSource "title" "$sortedFile")
+        local postDate=$(date +"$niceDateFormat" --date="$(getFromSource "postDate" "$sortedFile")")        
+        local tagList=$(getFromSource "tags" "$sortedFile")
+        local fileName=$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
+        content=$content'\n<li><a href="'$global_url/$fileName'">'$title'</a> &mdash; '$postDate'<br>'
+        if [[ "$tagList" =~ [:alnum:]+ ]]; then
+            content=$content'<pre>    Tags: <code>'$(echo $tagList | sed 's/;/<\/code>, <code>/g')'</code></pre></li>'
+        fi
+    done
+    content="$content\n</ul>"
+    content=$content'\n<div id="all_posts"><a href="'$global_url'">Back to index</a></div>'
+    
+    echo "Built "$(createHtmlPage "" "" "" "" "$content" "" "$global_htmlDir/$global_archiveFile")
+    log "[Info] Done building $global_archiveFile"
 }
 
 # publish a file
@@ -482,7 +565,7 @@ post() {
     # don't know if blogger previewed, so just delete any preview
     [[ -f "$parsedPreview" ]] && rm "$parsedPreview" && log "[Info] Deleted $parsedPreview"
     if [[ $postResponse == "p" ]]; then
-        # parse directly into htmldir
+        # parse directly into htmldir     
         local parsedPost="$(parse "$filename" "$global_htmlDir")"
         # move source from tempdir to sourcedir, renaming to nice name
         mv "$filename" "$global_sourceDir/"$(basename $parsedPost .html)".$format"
@@ -497,6 +580,8 @@ post() {
     elif [[ $postResponse == "q" ]]; then
         log "[Info] Post process halted"
     fi
+    buildIndex
+    buildArchive
     sync
 
 }
@@ -626,6 +711,7 @@ exit() {
 ########################################################################
 log "[Info] Starting run"
 initialize
+
 # make sure $EDITOR is set
 [[ -z $EDITOR ]] && exit "[Error] \$EDITOR not exported" "Set \$EDITOR enviroment variable"
 # check for valid arguments
