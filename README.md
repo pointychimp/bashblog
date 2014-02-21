@@ -20,7 +20,7 @@ Features
 Configuration
 -------------
 
-You should create a config file and give at least some of the global variables personalized values. I would hesitate before changing the default directories, but definitely change the title, your name, email, etc.
+You should create a config file and give at least some of the global variables personalized values. I would hesitate before changing the default directories, but you should definitely change the title, your name, email, etc.
 
 The default name for the config file is `bashblog.conf`. The variables should be overloaded in the following format
 
@@ -53,7 +53,10 @@ Todo
 ----
 
 * comments
-* generate rss feed, index file, archive file, etc.
+* generate rss feed, (more?)
 * other functions .... rebuild, reset come to mind
 * tag page listing all tags ordered by popular use
 * page to view only posts with a specific tag
+
+
+
