@@ -5,7 +5,7 @@ My adaptation of [cfenollosa's bashblog](https://github.com/cfenollosa/bashblog)
 
 Bashblog is a bash script that provides an easy way to generate and maintain a blog. It is easy to interact with and allows for customization. It does not depend on anything special. Everything needed is stored in a single script or is generated externally into files for optional customization.
 
-[My blog](http://blog.mineoas.us) is generated with bashblog. Check it out.
+[My blog](http://blog.mineoas.us) is generated with bashblog. [The initial blog post](http://mineoas.us/blog/bashblogquick-and-dirty-blog-generator.html) may have even more useful information in it than this readme, though the readme will be kept up-to-date.
 
 Features
 --------
