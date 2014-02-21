@@ -477,6 +477,7 @@ buildIndex() {
         local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
         content="$content\n"$(awk '/<!-- entry begin -->/, /<!-- entry end -->/' "$publishedFile")
     done
+    content=$content'\n<div id="all_posts"><a href="'$global_url'/'$global_archiveFile'">See all posts</a></div>'
     echo "Built "$(createHtmlPage "" "" "" "$global_title" "$content" "" "$global_htmlDir/$global_indexFile")
     log "[Info] Done building $global_indexFile"
 }
