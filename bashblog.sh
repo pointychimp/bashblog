@@ -227,7 +227,6 @@ getFromSource() {
                 [[ $foundTags == "true" ]] && tags="$tags;$line" && continue
                 [[ "$line" == "---------POST-TAGS---ONE-PER-LINE----------" ]] && foundTags="true" && read line && tags="$line"
             done
-            log "$tags"
             echo "$tags"
             break
         fi
@@ -402,7 +401,7 @@ parse() {
 # $1    format, "md" or "html"
 # $2    date & time of original posting
 # $3    date & time of latest edit
-# $4    title of post
+# $4    title of post (or blog if index or archive)
 # $5    content of post
 # $6    tags of post, if any
 # $7    filename where everything goes
@@ -478,7 +477,7 @@ buildIndex() {
         local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
         content="$content\n"$(awk '/<!-- entry begin -->/, /<!-- entry end -->/' "$publishedFile")
     done
-    echo "Built "$(createHtmlPage "" "" "" "" "$content" "" "$global_htmlDir/$global_indexFile")
+    echo "Built "$(createHtmlPage "" "" "" "$global_title" "$content" "" "$global_htmlDir/$global_indexFile")
     log "[Info] Done building $global_indexFile"
 }
 
@@ -517,7 +516,7 @@ buildArchive() {
     content="$content\n</ul>"
     content=$content'\n<div id="all_posts"><a href="'$global_url'">Back to index</a></div>'
     
-    echo "Built "$(createHtmlPage "" "" "" "" "$content" "" "$global_htmlDir/$global_archiveFile")
+    echo "Built "$(createHtmlPage "" "" "" "$global_title" "$content" "" "$global_htmlDir/$global_archiveFile")
     log "[Info] Done building $global_archiveFile"
 }
 
