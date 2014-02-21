@@ -182,8 +182,10 @@ fillPostTemplate() {
 # takes no args
 sync() {
     if [[ ! -z "$global_syncFunction" ]]; then
+        echo "Starting sync"
         log "[Info] Starting sync"
         $global_syncFunction
+        echo "End of sync"
         log "[Info] End of sync"
     else
         log "[Info] No sync function"
