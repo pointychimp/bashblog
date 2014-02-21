@@ -306,7 +306,7 @@ edit() {
         # don't need to sync, post func does it for us
     else
         # warn that this will only edit an arbitrary file and run sync func
-        echo "You are going to edit a file outside of $global_draftsDir and $global_souceDir"
+        echo "You are going to edit a file outside of $global_draftsDir and $global_sourceDir."
         echo "You can do that, and I'll run the sync function (if any), but that's it."
         echo -n "Are you sure you want to continue? (y/N) ";
         read response && echo
@@ -315,8 +315,8 @@ edit() {
             log "[Info] Entering editor $EDITOR"
             $EDITOR "$1"
             log "[Info] Exited editor $EDITOR"
-            buildIndex
-            buildArchive
+            #buildIndex
+            #buildArchive
             sync
         fi
     fi
