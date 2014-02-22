@@ -299,6 +299,7 @@ edit() {
         log "[Info] Republished $publishedFile"
         buildIndex
         buildArchive
+        buildFeed
         sync
     elif [[ "$1" == *$global_draftsDir/* ]]; then
         # use post func to edit and possibly publish
@@ -317,6 +318,7 @@ edit() {
             log "[Info] Exited editor $EDITOR"
             #buildIndex
             #buildArchive
+            #buildFeed
             sync
         fi
     fi
@@ -455,6 +457,50 @@ createHtmlPage() {
     echo $7
 }
 
+# generates $global_feed file
+#
+# takes no args
+buildFeed() {
+	log "[Info] Starting build of $global_feed"
+	local feedFile="$global_htmlDir/$global_feed"	
+	echo '<?xml version="1.0" encoding="UTF-8" ?>' > "$feedFile"
+    echo '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">' >> "$feedFile"
+    echo '<channel><title>'$global_title'</title><link>'$global_url'</link>' >> "$feedFile"
+    echo '<description>'$global_description'</description><language>en</language>' >> "$feedFile"
+    echo '<lastBuildDate>'$(date +"%a, %d %b %Y %H:%M:%S %z")'</lastBuildDate>' >> "$feedFile"
+    echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z")'</pubDate>' >> "$feedFile"
+    echo '<atom:link href="'$global_url/$global_feed'" rel="self" type="application/rss+xml" />' >> "$feedFile"
+	local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
+    local unsortedList
+	local n=0
+	while [[ n -lt $global_feedLength ]] && read line
+    do
+        if [[ "$line" == "$global_htmlDir/$global_indexFile" ]] || [[ "$line" == "$global_htmlDir/$global_archiveFile" ]]; then
+            continue
+        fi
+        unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
+        n=$(($n+1));
+    done <<< "$postList"
+    local sortedList=$(echo -e $unsortedList | sort -r)
+    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
+    do
+		local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
+        echo '<item><title>' >> "$feedFile"
+        echo "$(awk '/<h3><a class="ablack" href=".+">/, /<\/a><\/h3>/{if (!/<h3><a class="ablack" href=".+">/ && !/<\/a><\/h3>/) print}' $publishedFile)" >> "$feedFile"
+        echo '</title><description><![CDATA[' >> "$feedFile"
+        echo "$(awk '/<!-- text begin -->/, /<!-- entry end -->/{if (!/<!-- text begin -->/ && !/<!-- entry end -->/) print}' $publishedFile)" >> "$feedFile"
+
+        echo "]]></description><link>$global_url/$sortedFile</link>" >> "$feedFile"
+        echo "<guid>"$(basename "$publishedFile")"</guid>" >> "$feedFile"
+        echo "<dc:creator>$global_author</dc:creator>" >> "$feedFile"
+        echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z" --date=$(getFromSource "postDate" "$sortedFile"))'</pubDate></item>' >> "$feedFile"
+    done
+    echo '</channel></rss>' >> "$feedFile"
+    
+    echo "Built $feedFile"
+    log "[Info] Done building "$(basename "$feedFile")
+}
+
 # generate $global_indexFile again,
 # containing up to the last ten posts' contents
 #
@@ -584,6 +630,7 @@ post() {
     fi
     buildIndex
     buildArchive
+    buildFeed
     sync
 
 }
