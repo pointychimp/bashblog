@@ -485,15 +485,19 @@ buildFeed() {
     for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
     do
 		local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
-        echo '<item><title>' >> "$feedFile"
-        echo "$(awk '/<h3><a class="ablack" href=".+">/, /<\/a><\/h3>/{if (!/<h3><a class="ablack" href=".+">/ && !/<\/a><\/h3>/) print}' $publishedFile)" >> "$feedFile"
-        echo '</title><description><![CDATA[' >> "$feedFile"
-        echo "$(awk '/<!-- text begin -->/, /<!-- entry end -->/{if (!/<!-- text begin -->/ && !/<!-- entry end -->/) print}' $publishedFile)" >> "$feedFile"
-
-        echo "]]></description><link>$global_url/$sortedFile</link>" >> "$feedFile"
-        echo "<guid>"$(basename "$publishedFile")"</guid>" >> "$feedFile"
+        echo '<item>' >> "$feedFile"
+        echo -n '<title>' >> "$feedFile"
+        echo -n "$(awk '/<h3><a class="ablack" href=".+">/, /<\/a><\/h3>/{if (!/<h3><a class="ablack" href=".+">/ && !/<\/a><\/h3>/) print}' $publishedFile)" >> "$feedFile"
+        echo '</title>' >> "$feedFile"
+        echo '<description><![CDATA[' >> "$feedFile"
+        echo "$(awk '/<!-- text begin -->/, /<!-- text end -->/{if (!/<!-- text begin -->/ && !/<!-- text end -->/) print}' $publishedFile)" >> "$feedFile"
+        #echo "$(awk '/<!-- text begin -->/, /<!-- entry end -->/{if (!/<!-- text begin -->/ && !/<!-- entry end -->/) print}' $publishedFile)" >> "$feedFile"
+        echo "]]></description>" >> "$feedFile"
+        echo "<link>$global_url/"$(basename "$publishedFile")"</link>" >> "$feedFile"
+        echo "<guid>$global_url/"$(basename "$publishedFile")"</guid>" >> "$feedFile"
         echo "<dc:creator>$global_author</dc:creator>" >> "$feedFile"
-        echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z" --date=$(getFromSource "postDate" "$sortedFile"))'</pubDate></item>' >> "$feedFile"
+        echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z" --date=$(getFromSource "postDate" "$sortedFile"))'</pubDate>' >> "$feedFile"
+        echo '</item>' >> "$feedFile"
     done
     echo '</channel></rss>' >> "$feedFile"
     
