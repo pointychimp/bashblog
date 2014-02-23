@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
 
     global_softwareName="BashBlog"
-    global_softwareVersion="1.0b"
+    global_softwareVersion="2.0b"
 
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -224,9 +224,11 @@ getFromSource() {
         if [[ "$1" == "tags" ]]; then
             local foundTags="false"
             local tags
-            while read line
+            while read line # loop through the remaining lines
             do
-                [[ $foundTags == "true" ]] && tags="$tags;$line" && continue
+                # this line should be executed everytime after tags are found
+                [[ $foundTags == "true" ]] && tags="$tags;$line" && continue 
+                # this line basically makes sure we are at the tags and then puts the first one in the tags variable
                 [[ "$line" == "---------POST-TAGS---ONE-PER-LINE----------" ]] && foundTags="true" && read line && tags="$line"
             done
             echo "$tags"
@@ -470,7 +472,8 @@ buildFeed() {
     echo '<lastBuildDate>'$(date +"%a, %d %b %Y %H:%M:%S %z")'</lastBuildDate>' >> "$feedFile"
     echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z")'</pubDate>' >> "$feedFile"
     echo '<atom:link href="'$global_url/$global_feed'" rel="self" type="application/rss+xml" />' >> "$feedFile"
-	local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
+    # See buildIndex and buildArchive for details on the sorting process....
+    local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
     local unsortedList
 	local n=0
 	while [[ n -lt $global_feedLength ]] && read line
@@ -487,15 +490,16 @@ buildFeed() {
 		local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
         echo '<item>' >> "$feedFile"
         echo -n '<title>' >> "$feedFile"
+        # maybe I should just get the title from source??? Side effect of using old code
         echo -n "$(awk '/<h3><a class="ablack" href=".+">/, /<\/a><\/h3>/{if (!/<h3><a class="ablack" href=".+">/ && !/<\/a><\/h3>/) print}' $publishedFile)" >> "$feedFile"
         echo '</title>' >> "$feedFile"
         echo '<description><![CDATA[' >> "$feedFile"
         echo "$(awk '/<!-- text begin -->/, /<!-- text end -->/{if (!/<!-- text begin -->/ && !/<!-- text end -->/) print}' $publishedFile)" >> "$feedFile"
-        #echo "$(awk '/<!-- text begin -->/, /<!-- entry end -->/{if (!/<!-- text begin -->/ && !/<!-- entry end -->/) print}' $publishedFile)" >> "$feedFile"
         echo "]]></description>" >> "$feedFile"
         echo "<link>$global_url/"$(basename "$publishedFile")"</link>" >> "$feedFile"
         echo "<guid>$global_url/"$(basename "$publishedFile")"</guid>" >> "$feedFile"
         echo "<dc:creator>$global_author</dc:creator>" >> "$feedFile"
+        # hey, I'm getting the publication date from source! 
         echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z" --date=$(getFromSource "postDate" "$sortedFile"))'</pubDate>' >> "$feedFile"
         echo '</item>' >> "$feedFile"
     done
@@ -512,21 +516,27 @@ buildFeed() {
 buildIndex() {
     log "[Info] Starting build of $global_indexFile"
     local content
+    # get list of files in source dir that should have the file names 
+    # (except extensions) of all published posts
     local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
     local unsortedList
     local n=0
     while [[ n -lt $global_feedLength ]] && read line
     do
+        # I'm pretty sure this will never happen as posts are being searched for in the source dir
         if [[ "$line" == "$global_htmlDir/$global_indexFile" ]] || [[ "$line" == "$global_htmlDir/$global_archiveFile" ]]; then
             continue
         fi
+        # append to unsorted list in the following format
+        # "date" "filename"
+        # 20141231 source/title-of-post.md
         unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
         n=$(($n+1));
     done <<< "$postList"
-    local sortedList=$(echo -e $unsortedList | sort -r)
-    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
+    local sortedList=$(echo -e $unsortedList | sort -r) # sort by date using sort command
+    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //') # get each file name out of sorted list
     do
-        local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
+        local publishedFile="$global_htmlDir/"$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/') # remove "source/" and set extension to ".html"
         content="$content\n"$(awk '/<!-- entry begin -->/, /<!-- entry end -->/' "$publishedFile")
     done
     content=$content'\n<div id="all_posts"><a href="'$global_url'/'$global_archiveFile'">See all posts</a></div>'
@@ -544,23 +554,31 @@ buildArchive() {
     content="$content\n<ul>"
     
     
+    # get list of files in source dir that should have the file names 
+    # (except extensions) of all published posts
     local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
-    local unsortedList
+    local unsortedList 
     while read line
     do
+        # skip index or archive if found for some stupid reason. This should never happen. Probably should be taken out
         if [[ "$line" == "$global_htmlDir/$global_indexFile" ]] || [[ "$line" == "$global_htmlDir/$global_archiveFile" ]]; then
             continue
         fi
+        # append to unsorted list in the following format
+        # "date" "filename"
+        # 20141231 source/title-of-post.md
         unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
         n=$(($n+1));
     done <<< "$postList"
+    # use sort command to sort list by date
+    # note: date resolution only to the day. Multiple posts per day are sorted in reverse alphabetical I think
     local sortedList=$(echo -e $unsortedList | sort -r)
-    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
+    for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //') # get each file name out of sorted list
     do
         local title=$(getFromSource "title" "$sortedFile")
         local postDate=$(date +"$niceDateFormat" --date="$(getFromSource "postDate" "$sortedFile")")        
         local tagList=$(getFromSource "tags" "$sortedFile")
-        local fileName=$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/')
+        local fileName=$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/') # remove "source/" and make sure extension is ".html"
         content=$content'\n<li><a href="'$global_url/$fileName'">'$title'</a> &mdash; '$postDate'<br>'
         if [[ "$tagList" =~ [:alnum:]+ ]]; then
             content=$content'<pre>    Tags: <code>'$(echo $tagList | sed 's/;/<\/code>, <code>/g')'</code></pre></li>'
@@ -624,6 +642,10 @@ post() {
         # echo/log afterwards because need title of post in echo/log
         echo "Publishing "$(basename $parsedPost)
         log "[Info] Publishing $parsedPost"
+        buildIndex
+        buildArchive
+        buildFeed
+        sync
     elif [[ $postResponse == "d" ]]; then
         local parsedPost="$(parse "$filename" "$global_tempDir")"
         echo "Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
@@ -632,10 +654,7 @@ post() {
     elif [[ $postResponse == "q" ]]; then
         log "[Info] Post process halted"
     fi
-    buildIndex
-    buildArchive
-    buildFeed
-    sync
+
 
 }
 
@@ -646,7 +665,7 @@ post() {
 backup() {
     local backupList="$global_sourceDir $global_draftsDir $global_htmlDir $global_config"
     tar cfz $global_backupFile $backupList &> /dev/null
-    [[ $? -ne 0 ]] && log "[Warning] Backup error"
+    [[ $? -ne 0 ]] && log "[Warning] Backup error" || log "[Info] Backup success"
     chmod 600 $global_backupFile
 }
 
