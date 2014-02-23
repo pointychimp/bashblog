@@ -170,7 +170,7 @@ fillPostTemplate() {
     echo $datetime                                     >> $2 # edit datetime
     echo "----------------POST-CONTENT---------------" >> $2
     echo "Title goes on this line"                     >> $2
-    echo "----"                                        >> $2
+    echo "-------------------------------------------" >> $2
     echo -e $content                                   >> $2
     echo "---------POST-TAGS---ONE-PER-LINE----------" >> $2
     echo ""                                            >> $2
@@ -247,26 +247,26 @@ setInSource() {
     do
         read line # get line 2
         if [[ "$1" == "format" ]]; then
-            local replacement="s/$line/$2/"
+            local replacement="0,/$line/{s/$line/$2/}"
             sed -i "$replacement" "$3"
             break
         fi
         read line # get line 3
         if [[ "$1" == "postDate" ]]; then
-            local replacement="s/$line/$2/"
+            local replacement="0,/$line/{s/$line/$2/}"
             sed -i "$replacement" "$3"
             break
         fi
         read line # get line 4
         if [[ "$1" == "editDate" ]]; then
-            local replacement="s/$line/$2/"
+            local replacement="0,/$line/{s/$line/$2/}"
             sed -i "$replacement" "$3"
             break
         fi
         read line # get line 5
         read line # get line 6
         if [[ "$1" == "title" ]]; then
-            local replacement="s/$line/$2/"
+            local replacement="0,/$line/{s/$line/$2/}"
             sed -i "$replacement" "$3"
             break
         fi
