@@ -7,6 +7,13 @@ Bashblog is a bash script that provides an easy way to generate and maintain a b
 
 [My blog](http://blog.mineoas.us) is generated with bashblog. [The initial blog post](http://mineoas.us/blog/bashblogquick-and-dirty-blog-generator.html) may have even more useful information in it than this readme, though the readme will be kept up-to-date.
 
+Changelog
+---------
+
+* 2.0b    [5ddec04](https://bitbucket.org/pointychimp/bashblog2/commits/5ddec0441d2d4891e483e5d5a8f4daa6c090af64) Generates feed file.
+* 1.0b    [29c65bf](https://bitbucket.org/pointychimp/bashblog2/commits/29c65bfeb957881d594cd76b0c484cf49565a8bc) First "usable" release. Able to make/edit posts. Generates index and archive files.
+
+
 Features
 --------
 
@@ -53,7 +60,6 @@ Todo
 ----
 
 * comments
-* generate rss feed, (more?)
 * other functions .... rebuild, reset come to mind
 * tag page listing all tags ordered by popular use
 * page to view only posts with a specific tag
