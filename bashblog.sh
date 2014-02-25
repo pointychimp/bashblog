@@ -482,7 +482,7 @@ buildFeed() {
             continue
         fi
         unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
-        n=$(($n+1));
+        n=$(($n+1)); 
     done <<< "$postList"
     local sortedList=$(echo -e $unsortedList | sort -r)
     for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
@@ -681,7 +681,7 @@ markdown() {
 # if the file does not already exist,
 # creates style sheet from scratch
 #
-# takes no args
+# $1    if anything, then force overwrite
 createCss() {
     # this is basically a line-for-line copy of the original bashblog's css
     # if you're comparing it to the original, this is the css for
@@ -689,8 +689,9 @@ createCss() {
     # or may be ready to style things that haven't been implemented yet in bashblog2.
     #
     # This needs to be reviewed.
-    if [[ ! -f "$global_htmlDir/$global_blogcssFile" ]]; then
-    log "[Warning] blog.css file not found. Regenerating from scratch"
+    if [[ ! -f "$global_htmlDir/$global_blogcssFile" ]] || [[ ! -z "$1" ]]; then
+    [[ ! -f "$global_htmlDir/$global_blogcssFile" ]] && log "[Warning] blog.css file not found."
+    log "[Info] Regenerating blog.css from scratch"
     echo 'body{font-family:Georgia,"Times New Roman",Times,serif;margin:0;padding:0;background-color:#F3F3F3;}
 #divbodyholder{padding:5px;background-color:#DDD;width:874px;margin:24px auto;}
 #divbody{width:776px;border:solid 1px #ccc;background-color:#fff;padding:0px 48px 24px 48px;top:0;}
@@ -726,17 +727,19 @@ h4{margin-left:24px;margin-right:24px;}
 # if they do not already exist,
 # creates header and footer from scratch
 #
-# takes no args
+# $1    if anything, then force overwrite
 createHeaderFooter() {
-    if [[ ! -f "$global_headerFile" ]]; then
-    log "[Warning] header file not found. Regenerating from scratch"
+    if [[ ! -f "$global_headerFile" ]] || [[ ! -z "$1" ]]; then
+    [[ ! -f "$global_headerFile" ]] && log "[Warning] Header file not found."
+    log "[Info] Regenerating header file."
         echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"><head>
 <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
 <link rel="stylesheet" href="'$global_blogcssFile'" type="text/css" />' > "$global_headerFile"
     fi
-    if [[ ! -f "$global_footerFile" ]]; then
-    log "[Warning] footer file not found. Regenerating from scratch"
+    if [[ ! -f "$global_footerFile" ]] || [[ ! -z "$1" ]]; then
+    [[ ! -f "$global_footerFile" ]] && log "[Warning] Footer file not found."
+    log "[Info] Regenerating footer file."
         local protected_mail="$(echo "$global_email" | sed 's/@/\&#64;/g' | sed 's/\./\&#46;/g')"
         echo '<div id="footer">'$global_license '<a href="'$global_author_url'">'$global_author'</a> &mdash; <a href="mailto:'$protected_mail'">'$protected_mail'</a><br/>
 Generated with <a href="https://github.com/pointychimp/bashblog2">bashblog2</a>, based on <a href="https://github.com/cfenollosa/bashblog">bashblog</a></div>' > "$global_footerFile"
@@ -788,7 +791,7 @@ initialize
 [[ -z $EDITOR ]] && exit "[Error] \$EDITOR not exported" "Set \$EDITOR enviroment variable"
 # check for valid arguments
 # chain them together like [[  ]] && [[  ]] && ... && usage && exit
-[[ $1 != "edit" ]] && [[ $1 != "post" ]] && usage && exit
+[[ $1 != "edit" ]] && [[ $1 != "post" ]] && [[ $1 != "rebuild" ]] && usage && exit
 
 #
 # edit option
@@ -857,4 +860,22 @@ if [[ $1 == "post" ]]; then
 fi
 #############
 
+#
+# rebuild option
+################
+if [[ $1 == "rebuild" ]]; then
+    echo "(1/3) Rebuild index, archive, and feed? This will apply"
+    echo -n "any changes to variables. Do this? (y/N) "
+    read rebuildResponse; rebuildResponse=$(echo $rebuildResponse | tr '[:upper:]' '[:lower:]')
+    [[ "$rebuildResponse" == "y" ]] && buildIndex && buildArchive && buildFeed
+    echo "(2/3) Rebuild header and footer? This will undo customizations,"
+    echo -n "but apply any changes to variables. Do this? (y/N) "
+    read rebuildResponse; rebuildResponse=$(echo $rebuildResponse | tr '[:upper:]' '[:lower:]')
+    [[ "$rebuildResponse" == "y" ]] && createHeaderFooter "overwrite"
+    echo "(3/3) Rebuild css? This will undo customizations."
+    echo -n "Do this? (y/N) "
+    read rebuildResponse; rebuildResponse=$(echo $rebuildResponse | tr '[:upper:]' '[:lower:]')
+    [[ "$rebuildResponse" == "y" ]] && createCss "overwrite"
+fi
+#############
 exit
