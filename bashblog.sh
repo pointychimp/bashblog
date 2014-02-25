@@ -876,6 +876,7 @@ if [[ $1 == "rebuild" ]]; then
     echo -n "Do this? (y/N) "
     read rebuildResponse; rebuildResponse=$(echo $rebuildResponse | tr '[:upper:]' '[:lower:]')
     [[ "$rebuildResponse" == "y" ]] && createCss "overwrite"
+    sync
 fi
 #############
 exit
