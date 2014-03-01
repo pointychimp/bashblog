@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
 
     global_softwareName="BashBlog"
-    global_softwareVersion="2.0b"
+    global_softwareVersion="2.1b"
 
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -227,7 +227,7 @@ getFromSource() {
             while read line # loop through the remaining lines
             do
                 # this line should be executed everytime after tags are found
-                [[ $foundTags == "true" ]] && tags="$tags;$line" && continue 
+                [[ $foundTags == "true" ]] && tags="$tags;$line" && continue
                 # this line basically makes sure we are at the tags and then puts the first one in the tags variable
                 [[ "$line" == "---------POST-TAGS---ONE-PER-LINE----------" ]] && foundTags="true" && read line && tags="$line"
             done
@@ -305,7 +305,7 @@ edit() {
         sync
     elif [[ "$1" == *$global_draftsDir/* ]]; then
         # use post func to edit and possibly publish
-        post "$(getFromSource "format" "$1")" "$1"
+        post $(getFromSource "format" "$1") "$1"
         # don't need to sync, post func does it for us
     else
         # warn that this will only edit an arbitrary file and run sync func
@@ -389,7 +389,7 @@ parse() {
             fi
         fi
     done < "$1"
-    # make sure filename is unique if no overwriteFile specified  
+    # make sure filename is unique if no overwriteFile specified
     while [[ -f "$filename" ]] && [[ -z "$overwriteFile" ]]; do
         filename=$(echo $filename | sed 's/\.html$//')"-$RANDOM.html"
     done
@@ -455,7 +455,7 @@ createHtmlPage() {
     echo '</div>' >> "$filename" # content
     cat "$global_footerFile" >> "$filename"
     echo '</body></html>' >> "$filename"
-    
+
     echo $7
 }
 
@@ -464,7 +464,7 @@ createHtmlPage() {
 # takes no args
 buildFeed() {
 	log "[Info] Starting build of $global_feed"
-	local feedFile="$global_htmlDir/$global_feed"	
+	local feedFile="$global_htmlDir/$global_feed"
 	echo '<?xml version="1.0" encoding="UTF-8" ?>' > "$feedFile"
     echo '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">' >> "$feedFile"
     echo '<channel><title>'$global_title'</title><link>'$global_url'</link>' >> "$feedFile"
@@ -482,7 +482,7 @@ buildFeed() {
             continue
         fi
         unsortedList="$unsortedList"$(echo $(getFromSource "postDate" "$line") "$line")"\n"
-        n=$(($n+1)); 
+        n=$(($n+1));
     done <<< "$postList"
     local sortedList=$(echo -e $unsortedList | sort -r)
     for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //')
@@ -499,12 +499,12 @@ buildFeed() {
         echo "<link>$global_url/"$(basename "$publishedFile")"</link>" >> "$feedFile"
         echo "<guid>$global_url/"$(basename "$publishedFile")"</guid>" >> "$feedFile"
         echo "<dc:creator>$global_author</dc:creator>" >> "$feedFile"
-        # hey, I'm getting the publication date from source! 
+        # hey, I'm getting the publication date from source!
         echo '<pubDate>'$(date +"%a, %d %b %Y %H:%M:%S %z" --date=$(getFromSource "postDate" "$sortedFile"))'</pubDate>' >> "$feedFile"
         echo '</item>' >> "$feedFile"
     done
     echo '</channel></rss>' >> "$feedFile"
-    
+
     echo "Built $feedFile"
     log "[Info] Done building "$(basename "$feedFile")
 }
@@ -516,7 +516,7 @@ buildFeed() {
 buildIndex() {
     log "[Info] Starting build of $global_indexFile"
     local content
-    # get list of files in source dir that should have the file names 
+    # get list of files in source dir that should have the file names
     # (except extensions) of all published posts
     local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
     local unsortedList
@@ -552,12 +552,12 @@ buildArchive() {
     log "[Info] Starting build of $global_archiveFile"
     local content="<h3>All posts</h3>"
     content="$content\n<ul>"
-    
-    
-    # get list of files in source dir that should have the file names 
+
+
+    # get list of files in source dir that should have the file names
     # (except extensions) of all published posts
     local postList=$(find "$global_sourceDir" -type f | grep '.html\|.md')
-    local unsortedList 
+    local unsortedList
     while read line
     do
         # skip index or archive if found for some stupid reason. This should never happen. Probably should be taken out
@@ -576,7 +576,7 @@ buildArchive() {
     for sortedFile in $(echo "$sortedList" | sed 's/[0-9]*\ //') # get each file name out of sorted list
     do
         local title=$(getFromSource "title" "$sortedFile")
-        local postDate=$(date +"$niceDateFormat" --date="$(getFromSource "postDate" "$sortedFile")")        
+        local postDate=$(date +"$niceDateFormat" --date="$(getFromSource "postDate" "$sortedFile")")
         local tagList=$(getFromSource "tags" "$sortedFile")
         local fileName=$(echo $(basename "$sortedFile") | sed 's/html$\|md$/html/') # remove "source/" and make sure extension is ".html"
         content=$content'\n<li><a href="'$global_url/$fileName'">'$title'</a> &mdash; '$postDate'<br>'
@@ -586,7 +586,7 @@ buildArchive() {
     done
     content="$content\n</ul>"
     content=$content'\n<div id="all_posts"><a href="'$global_url'">Back to index</a></div>'
-    
+
     echo "Built "$(createHtmlPage "" "" "" "$global_title" "$content" "" "$global_htmlDir/$global_archiveFile")
     log "[Info] Done building $global_archiveFile"
 }
@@ -616,6 +616,7 @@ post() {
         previewResponse=$(echo $previewResponse | tr '[:upper:]' '[:lower:]')
         if [[ "$previewResponse" == "y" ]]; then
             # yes he does
+
             local parsedPreview="$(parse "$filename" "$global_htmlDir/preview")" # filename of where source is on disk
             local url=$global_url"$(echo $parsedPreview | sed "s/$global_htmlDir//")" # url of preview, assuming sync is set up
             log "[Info] Generating preview $parsedPreview"
@@ -634,8 +635,8 @@ post() {
     done
     # don't know if blogger previewed, so just delete any preview
     [[ -f "$parsedPreview" ]] && rm "$parsedPreview" && log "[Info] Deleted $parsedPreview"
-    if [[ $postResponse == "p" ]]; then
-        # parse directly into htmldir     
+    if [[ "$postResponse" == "p" ]]; then
+        # parse directly into htmldir
         local parsedPost="$(parse "$filename" "$global_htmlDir")"
         # move source from tempdir to sourcedir, renaming to nice name
         mv "$filename" "$global_sourceDir/"$(basename $parsedPost .html)".$format"
@@ -646,13 +647,13 @@ post() {
         buildArchive
         buildFeed
         sync
-    elif [[ $postResponse == "d" ]]; then
-        local parsedPost="$(parse "$filename" "$global_tempDir")"
-        echo "Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
-        log "[Info] Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
-        mv "$filename" "$global_draftsDir/"$(basename $parsedPost .html)".$format"
+    elif [[ "$postResponse" == "d" ]]; then
+        local dashedTitle=$(echo $(getFromSource "title" "$filename") | tr [:upper:] [:lower:] | sed 's/\ /-/g' | tr -dc '[:alnum:]-')
+        echo "Saving $global_draftsDir/$dashedTitle.$format"
+        log "[Info] Saving $global_draftsDir/$dashedTitle.$format"
+        mv "$filename" "$global_draftsDir/$dashedTitle.$format" &> /dev/null
         sync
-    elif [[ $postResponse == "q" ]]; then
+    elif [[ "$postResponse" == "q" ]]; then
         log "[Info] Post process halted"
     fi
 
