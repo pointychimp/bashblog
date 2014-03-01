@@ -651,6 +651,7 @@ post() {
         echo "Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
         log "[Info] Saving $global_draftsDir/"$(basename $parsedPost .html)".$format"
         mv "$filename" "$global_draftsDir/"$(basename $parsedPost .html)".$format"
+        sync
     elif [[ $postResponse == "q" ]]; then
         log "[Info] Post process halted"
     fi
