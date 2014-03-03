@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
 
     global_softwareName="BashBlog"
-    global_softwareVersion="3.1b"
+    global_softwareVersion="3.2b"
 
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
