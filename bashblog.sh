@@ -344,7 +344,9 @@ parse() {
     local onTags="false"
     local overwriteFile="$3"
     local line
-    while read line; do
+    local OIFS=$IFS
+    IFS=
+    while read -r line; do
         if [[ "$line" == "---------DO-NOT-EDIT-THIS-SECTION----------" ]]; then
             read line # format content is in, "md" or "html"
             if [[ -z "$format" ]]; then
@@ -389,6 +391,7 @@ parse() {
             fi
         fi
     done < "$1"
+    IFS=$OIFS
     # make sure filename is unique if no overwriteFile specified
     while [[ -f "$filename" ]] && [[ -z "$overwriteFile" ]]; do
         filename=$(echo $filename | sed 's/\.html$//')"-$RANDOM.html"
@@ -396,7 +399,6 @@ parse() {
     if [[ ! -z "$overwriteFile" ]]; then
         filename="$overwriteFile"
     fi
-
     createHtmlPage $format $postDate $editDate "$title" "$content" "$tags" "$filename"
 }
 
