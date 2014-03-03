@@ -618,8 +618,8 @@ post() {
         previewResponse=$(echo $previewResponse | tr '[:upper:]' '[:lower:]')
         if [[ "$previewResponse" == "y" ]]; then
             # yes he does
-
-            local parsedPreview="$(parse "$filename" "$global_htmlDir/preview")" # filename of where source is on disk
+            local dashedTitle=$(echo $(getFromSource "title" "$filename") | tr [:upper:] [:lower:] | sed 's/\ /-/g' | tr -dc '[:alnum:]-')
+            local parsedPreview="$(parse "$filename" "$global_htmlDir/preview" "$global_htmlDir/preview/$dashedTitle")" # filename of where preview is on disk
             local url=$global_url"$(echo $parsedPreview | sed "s/$global_htmlDir//")" # url of preview, assuming sync is set up
             log "[Info] Generating preview $parsedPreview"
             sync
