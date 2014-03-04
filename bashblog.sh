@@ -142,13 +142,16 @@ detectDateVersion() {
 # takes no args
 usage() {
     echo $global_softwareName v$global_softwareVersion
-    echo "Usage: $0 command [filename]"
-    echo ""
+    echo "Usage: $0 command"
+    echo "<required> [optional]"
     echo "Commands:"
-    echo "    edit [filename] .............. edit a file and republish if necessary"
+    echo "    edit <filename> .............. edit a file and republish if necessary"
     echo "    post [markdown] [filename] ... publish a blog entry"
     echo "                                   if markdown not specified, then assume html"
     echo "                                   if no filename, start from scratch"
+    echo "    rebuild ...................... start rebuild process: can regenerate index,"
+    echo "                                   css, etc. from scratch"
+    echo "                                   useful when you've changed a global variable"
     echo ""
     echo "For more information, see README and $0 in a text editor"
     log "[Info] Showing usage"
