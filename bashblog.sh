@@ -152,6 +152,7 @@ usage() {
     echo "    rebuild ...................... start rebuild process: can regenerate index,"
     echo "                                   css, etc. from scratch"
     echo "                                   useful when you've changed a global variable"
+    echo "    reset ........................ delete basically everything to start fresh"
     echo ""
     echo "For more information, see README and $0 in a text editor"
     log "[Info] Showing usage"

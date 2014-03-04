@@ -64,7 +64,7 @@ Todo
 ----
 
 * comments
-* other functions .... reset come to mind
+* other functions .... none come to mind
 * tag page listing all tags ordered by popular use
 * page to view only posts with a specific tag
 
