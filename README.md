@@ -10,6 +10,7 @@ Bashblog is a bash script that provides an easy way to generate and maintain a b
 Changelog
 ---------
 
+* 1.0     [c511bc3](https://bitbucket.org/pointychimp/bashblog2/commits/c511bc35c09d1fdb4288b909110d4ef2f5c0eb47) Added reset function
 * 3.2b    [6671c8e](https://bitbucket.org/pointychimp/bashblog2/commits/6671c8ef55166dd41ccbc960cc023368f2960d2f) Fixed markdown parsing issue
 * 3.1b    [39fa613](https://bitbucket.org/pointychimp/bashblog2/commits/39fa61393272284a4c839de04396b28b5d0ec11a) Fixed draft related issues
 * 3.0b    [afaefa1](https://bitbucket.org/pointychimp/bashblog2/commits/afaefa1921564766ed8bc2f3f15f199f932570a3) Added rebuild function
