@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
 
     global_softwareName="BashBlog"
-    global_softwareVersion="3.3b"
+    global_softwareVersion="1.0"
 
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -70,7 +70,7 @@ initializeGlobalVariables() {
     global_archiveFile="archive.html" # page to list all posts, best to leave alone
     global_headerFile=".header.html" # header file
     global_footerFile=".footer.html" # footer file
-    global_blogcssFile="blog.css" # blog's styling
+    global_blogcssFile="blog.css" # blog's styling, is put in global_htmlDir
 
     global_feed="feed.rss" # rss feed file
     global_feedLength="10" # num of articles to include in feed
@@ -798,7 +798,7 @@ initialize
 [[ -z $EDITOR ]] && exit "[Error] \$EDITOR not exported" "Set \$EDITOR enviroment variable"
 # check for valid arguments
 # chain them together like [[  ]] && [[  ]] && ... && usage && exit
-[[ $1 != "edit" ]] && [[ $1 != "post" ]] && [[ $1 != "rebuild" ]] && usage && exit
+[[ $1 != "edit" ]] && [[ $1 != "post" ]] && [[ $1 != "rebuild" ]] && [[ $1 != "reset" ]] && usage && exit
 
 #
 # edit option
@@ -871,6 +871,7 @@ fi
 # rebuild option
 ################
 if [[ $1 == "rebuild" ]]; then
+    backup
     echo "(1/3) Rebuild index, archive, and feed? This will apply"
     echo -n "any changes to variables. Do this? (y/N) "
     read rebuildResponse; rebuildResponse=$(echo $rebuildResponse | tr '[:upper:]' '[:lower:]')
@@ -886,4 +887,39 @@ if [[ $1 == "rebuild" ]]; then
     sync
 fi
 #############
+
+#
+# reset option
+##############
+if [[ $1 == "reset" ]]; then
+    echo "This will delete the following."
+    echo "$global_htmlDir/ and subdirs (if any)"
+    echo "$global_sourceDir/ and subdirs (if any)"
+    echo "$global_draftsDir/ and subdirs (if any)"
+    echo "$global_headerFile"
+    echo "$global_footerFile"
+    echo "You do have $global_backupFile as a backup, but still be sure you want"
+    echo "to perform this action. If you are sure, type \"absolutely\""
+    echo -n ">"
+    read response; 
+    if [[ "$response" == "absolutely" ]]; then
+        backup
+        log "[Info] Reseting"
+        rm -r "$global_htmlDir"
+        log "[Info] Removed $global_htmlDir"
+        rm -r "$global_sourceDir"
+        log "[Info] Removed $global_sourceDir"
+        rm -r "$global_draftsDir"
+        log "[Info] Removed $global_draftsDir"
+        rm "$global_headerFile" "$global_footerFile"
+        log "[Info] Removed $global_headerFile and $global_footerFile"
+        log "[Info] Reset complete"
+        echo "Reset complete"
+        sync
+    else
+        echo "Did not reset"
+        log "[Info] Reset canceled"
+    fi
+fi
+##############
 exit
