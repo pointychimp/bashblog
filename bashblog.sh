@@ -750,7 +750,7 @@ createHeaderFooter() {
     log "[Info] Regenerating footer file."
         local protected_mail="$(echo "$global_email" | sed 's/@/\&#64;/g' | sed 's/\./\&#46;/g')"
         echo '<div id="footer">'$global_license '<a href="'$global_author_url'">'$global_author'</a> &mdash; <a href="mailto:'$protected_mail'">'$protected_mail'</a><br/>
-Generated with <a href="https://bitbucket.org/pointychimp/bashblog2">bashblog2</a>, based on <a href="https://github.com/cfenollosa/bashblog">bashblog</a></div>' > "$global_footerFile"
+Generated with <a href="https://bitbucket.org/pointychimp/bashblog">bashblog</a>, based on <a href="https://github.com/cfenollosa/bashblog">bashblog</a></div>' > "$global_footerFile"
     fi
 }
 
