@@ -51,7 +51,7 @@ initializeGlobalVariables() {
     log "[Info] Loading default globals"
 
     global_softwareName="BashBlog"
-    global_softwareVersion="1.0"
+    global_softwareVersion="1.0.1"
 
     global_title="My blog" # blog title
     global_description="Blogger blogging on my blog" # blog subtitle
@@ -449,7 +449,7 @@ createHtmlPage() {
         echo '</a></h3>' >> "$filename"
         echo '<div class="subtitle">'$(date +"$niceDateFormat" --date="$postDate") ' &mdash; ' >> "$filename"
         echo "$global_author" >> "$filename"
-        [[ ! -z "$tagList" ]] && echo "<br>Tags: <code>"$(echo $tagList | sed 's/;/<\/code>, <code>/g')"</code></div>" >> "$filename"
+        [[ ! -z "$tagList" ]] && echo "<br>Tags: <code>"$(echo $tagList | sed 's/;/<\/code>, <code>/g')"</code></div>" >> "$filename" || echo "</div>" >> "$filename"
         echo '<!-- text begin -->' >> "$filename" # This marks the beginning of the actual content
     fi
     echo -e "$content" >> "$filename" # body of post finally
